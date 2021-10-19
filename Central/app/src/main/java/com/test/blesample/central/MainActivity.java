@@ -64,12 +64,15 @@ public class MainActivity extends AppCompatActivity {
 
 		Log.d("aaaaa","aaaaa aaaaaaaaaaaaaa=");
 
+		/* Bluetoothのサポート状況チェック 未サポート端末なら起動しない */
 		if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
 			ErrPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
 		}
 
-
-		requestBlePermission();
+		/* 権限が許可されていない場合はリクエスト. */
+		if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
+			requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},REQUEST_PERMISSIONS);
+		}
 
 		final BluetoothManager bluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
 		mBluetoothAdapter = bluetoothManager.getAdapter();
@@ -86,14 +89,6 @@ public class MainActivity extends AppCompatActivity {
 		mBluetoothLeScanner.startScan(mScanCallback);
 	}
 
-
-	private void requestBlePermission(){
-		/* 権限が許可されていない場合はリクエスト. */
-		if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
-			requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},REQUEST_PERMISSIONS);
-		}
-	}
-
 	@Override
 	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
 		/* 権限リクエストの結果を取得する. */
@@ -101,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
 			if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 				Toast.makeText(MainActivity.this, "Succeed", Toast.LENGTH_SHORT).show();
 			} else {
-				ErrPopUp.create(MainActivity.this).setErrMsg("失敗しました。\nこのアプリでは、どうしようもないので終了します。").Show(MainActivity.this);
+				ErrPopUp.create(MainActivity.this).setErrMsg("失敗しました。\n\"許可\"を押下して、このアプリにBluetoothの権限を与えて下さい。\n終了します。").Show(MainActivity.this);
 			}
 		}else {
 			super.onRequestPermissionsResult(requestCode, permissions, grantResults);
