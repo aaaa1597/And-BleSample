@@ -26,16 +26,16 @@ public class MainActivity extends AppCompatActivity {
 		public void onScanResult(int callbackType, ScanResult result) {
 			super.onScanResult(callbackType, result);
 			if(result !=null && result.getDevice() != null) {
-				Log.d("aaaaa","aaaaa AdvertisingSid			 =" + result.getAdvertisingSid());
-				Log.d("aaaaa","aaaaa devices					=" + result.getDevice());
-				Log.d("aaaaa","aaaaa DataStatus				 =" + result.getDataStatus());
+				Log.d("aaaaa","aaaaa AdvertisingSid             =" + result.getAdvertisingSid());
+				Log.d("aaaaa","aaaaa devices                    =" + result.getDevice());
+				Log.d("aaaaa","aaaaa DataStatus                 =" + result.getDataStatus());
 				Log.d("aaaaa","aaaaa PeriodicAdvertisingInterval=" + result.getPeriodicAdvertisingInterval());
-				Log.d("aaaaa","aaaaa PrimaryPhy				 =" + result.getPrimaryPhy());
-				Log.d("aaaaa","aaaaa Rssi					   =" + result.getRssi());
-				Log.d("aaaaa","aaaaa ScanRecord				 =" + result.getScanRecord());
-				Log.d("aaaaa","aaaaa TimestampNanos			 =" + result.getTimestampNanos());
-				Log.d("aaaaa","aaaaa TxPower					=" + result.getTxPower());
-				Log.d("aaaaa","aaaaa Class					  =" + result.getClass());
+				Log.d("aaaaa","aaaaa PrimaryPhy                 =" + result.getPrimaryPhy());
+				Log.d("aaaaa","aaaaa Rssi                       =" + result.getRssi());
+				Log.d("aaaaa","aaaaa ScanRecord                 =" + result.getScanRecord());
+				Log.d("aaaaa","aaaaa TimestampNanos             =" + result.getTimestampNanos());
+				Log.d("aaaaa","aaaaa TxPower                    =" + result.getTxPower());
+				Log.d("aaaaa","aaaaa Class                      =" + result.getClass());
 			}
 		}
 
