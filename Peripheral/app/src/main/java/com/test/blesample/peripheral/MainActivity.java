@@ -214,7 +214,7 @@ public class MainActivity extends AppCompatActivity {
 
 			if(newState == BluetoothProfile.STATE_CONNECTED){
 				mConnectedDevice = device;
-				Log.d("aaaaa", MessageFormat.format("STATE_CONNECTED:{}", device.toString()));
+				Log.d("aaaaa", MessageFormat.format("STATE_CONNECTED:{0}", device.toString()));
 				Log.d("aaaaa", MessageFormat.format("接続されました。address={0}", device.getAddress()));
 			}
 			else{
