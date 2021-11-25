@@ -19,7 +19,11 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.test.blesample.central.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
 import static com.test.blesample.central.Constants.HEART_RATE_SERVICE_UUID;
@@ -62,8 +66,13 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		setContentView(R.layout.activity_device_connect);
 
 		/* 読出し要求ボタン */
-        findViewById(R.id.btn_req_read_characteristic).setOnClickListener(view -> {
-			requestReadCharacteristic();
+		findViewById(R.id.btn_req_read_characteristic).setOnClickListener(view -> {
+			if (mBLeMngServ != null && mCharacteristic != null) {
+				mBLeMngServ.readCharacteristic(mCharacteristic);
+			}
+			else {
+				Snackbar.make(findViewById(R.id.root_view_device), "Unknown error.", Snackbar.LENGTH_LONG).show();
+			}
 		});
 
 		/* BLE管理サービス起動 */
@@ -83,14 +92,12 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		mDeviceAddress  = intentfromMainActivity.getStringExtra(EXTRAS_DEVICE_ADDRESS);
 	}
 
-
 	@Override
 	protected void onResume() {
 		super.onResume();
 		/* 受信するブロードキャストintentを登録 */
 		registerReceiver(mGattIntentListner, makeGattUpdateIntentFilter());
 	}
-
 
 	@Override
 	protected void onPause() {
@@ -99,7 +106,6 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		unregisterReceiver(mGattIntentListner);
 	}
 
-
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
@@ -107,26 +113,6 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		mBLeMngServ = null;
 	}
 
-	/*
-	request from the Server the value of the Characteristic.
-	this request is asynchronous.
-	 */
-	private void requestReadCharacteristic() {
-		if (mBLeMngServ != null && mCharacteristic != null) {
-			mBLeMngServ.readCharacteristic(mCharacteristic);
-		}
-		else {
-			Snackbar.make(findViewById(R.id.root_view_device), "Unknown error.", Snackbar.LENGTH_LONG).show();
-		}
-	}
-
-	/*
-	 Handles various events fired by the Service.
-	 ACTION_GATT_CONNECTED: connected to a GATT server.
-	 ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
-	 ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.
-	 ACTION_DATA_AVAILABLE: received data from the device.  This can be a result of read or notification operations.
-	*/
 	private final BroadcastReceiver mGattIntentListner = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
@@ -154,76 +140,35 @@ public class DeviceConnectActivity extends AppCompatActivity {
 					break;
 
 				case BleMngService.UWS_GATT_SERVICES_DISCOVERED:
-					// set all the supported services and characteristics on the user interface.
-					setGattServices(mBLeMngServ.getSupportedGattServices());
-					registerCharacteristic();
+					mCharacteristic = findTerget(mBLeMngServ.getSupportedGattServices(), HEART_RATE_SERVICE_UUID, BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID);
+					if (mCharacteristic != null) {
+						mBLeMngServ.readCharacteristic(mCharacteristic);
+						mBLeMngServ.setCharacteristicNotification(mCharacteristic, true);
+					}
 					break;
 
 				case BleMngService.UWS_DATA_AVAILABLE:
 					int msg = intent.getIntExtra(BleMngService.UWS_DATA, -1);
-					Log.v("aaaaa", "ACTION_DATA_AVAILABLE " + msg);
+					TLog.d("ACTION_DATA_AVAILABLE " + msg);
 					updateInputFromServer(msg);
 					break;
 			}
 		}
 	};
 
+	private BluetoothGattCharacteristic findTerget(List<BluetoothGattService> supportedGattServices, UUID ServiceUuid, UUID CharacteristicUuid) {
+		BluetoothGattCharacteristic ret = null;
+		for (BluetoothGattService service : supportedGattServices) {
+			if( !service.getUuid().equals(ServiceUuid))
+				continue;
 
-	/*
-	 This sample demonstrates 'Read' and 'Notify' features.
-	 See http://d.android.com/reference/android/bluetooth/BluetoothGatt.html for the complete
-	 list of supported characteristic features.
-	*/
-	private void registerCharacteristic() {
-
-		BluetoothGattCharacteristic characteristic = null;
-
-		/* iterate all the Services the connected device offer.
-		a Service is a collection of Characteristic.
-		 */
-		for (ArrayList<BluetoothGattCharacteristic> service : mDeviceServices) {
-
-			// iterate all the Characteristic of the Service
-			for (BluetoothGattCharacteristic serviceCharacteristic : service) {
-
-				/* check this characteristic belongs to the Service defined in
-				PeripheralAdvertiseService.buildAdvertiseData() method
-				 */
-				if (serviceCharacteristic.getService().getUuid().equals(HEART_RATE_SERVICE_UUID)) {
-
-					if (serviceCharacteristic.getUuid().equals(BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID)) {
-						characteristic = serviceCharacteristic;
-						mCharacteristic = characteristic;
-					}
-				}
-			}
+			final List<BluetoothGattCharacteristic> findc = service.getCharacteristics().stream().filter(c -> {
+														return c.getUuid().equals(CharacteristicUuid);
+													}).collect(Collectors.toList());
+			/* 見つかった最後の分が有効なので、上書きする */
+			ret = findc.get(0);
 		}
-
-	   /*
-		int charaProp = characteristic.getProperties();
-		if ((charaProp | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
-		*/
-
-		if (characteristic != null) {
-			mBLeMngServ.readCharacteristic(characteristic);
-			mBLeMngServ.setCharacteristicNotification(characteristic, true);
-		}
-	}
-
-
-	private void setGattServices(List<BluetoothGattService> gattServices) {
-		if (gattServices == null)
-			return;
-
-		mDeviceServices.clear();
-
-		// Loops through available GATT Services from the connected device
-		for (BluetoothGattService gattService : gattServices) {
-			ArrayList<BluetoothGattCharacteristic> characteristic = new ArrayList<>();
-			characteristic.addAll(gattService.getCharacteristics()); // each GATT Service can have multiple characteristic
-			mDeviceServices.add(characteristic);
-		}
-
+		return ret;
 	}
 
 	private static IntentFilter makeGattUpdateIntentFilter() {

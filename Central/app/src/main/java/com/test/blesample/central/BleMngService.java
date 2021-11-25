@@ -75,7 +75,7 @@ public class BleMngService extends Service {
 
 		@Override
 		public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-			TLog.w("Discovery終了 result : ", status);
+			TLog.w("Discovery終了 result : {0}", status);
 			if (status == BluetoothGatt.GATT_SUCCESS) {
 				/* Intent送信(Service->Activity) */
 				sendBroadcast(new Intent(UWS_GATT_SERVICES_DISCOVERED));
