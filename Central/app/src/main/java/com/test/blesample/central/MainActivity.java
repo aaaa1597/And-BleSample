@@ -2,7 +2,6 @@ package com.test.blesample.central;
 
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
@@ -18,11 +17,8 @@ import android.os.Looper;
 import android.support.design.widget.Snackbar;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.widget.Button;
-
 import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
 import java.util.List;
 
 public class MainActivity extends BluetoothActivity {
@@ -171,25 +167,29 @@ public class MainActivity extends BluetoothActivity {
 			public void onScanResult(int callbackType, ScanResult result) {
 				super.onScanResult(callbackType, result);
 				mDeviceListAdapter.addDevice(result);
+				if(result.getScanRecord() != null && result.getScanRecord().getServiceUuids() != null)
+					TLog.d("発見!! {0}({1}):Rssi({2}) Uuids({3})", result.getDevice().getAddress(), result.getDevice().getName(), result.getRssi(), result.getScanRecord().getServiceUuids().toString());
+				else
+					TLog.d("発見!! {0}({1}):Rssi({2})", result.getDevice().getAddress(), result.getDevice().getName(), result.getRssi());
 //				if(result !=null && result.getDevice() != null) {
 //					TLog.d("----------------------------------");
-//					TLog.d("aaaaa AdvertisingSid             =" + result.getAdvertisingSid());
-//					TLog.d("aaaaa device                     =" + result.getDevice());
-//					TLog.d("            Name                 =" + result.getDevice().getName());
-//					TLog.d("            Address              =" + result.getDevice().getAddress());
-//					TLog.d("            Class                =" + result.getDevice().getClass());
-//					TLog.d("            BluetoothClass       =" + result.getDevice().getBluetoothClass());
-//					TLog.d("            BondState            =" + result.getDevice().getBondState());
-//					TLog.d("            Type                 =" + result.getDevice().getType());
-//					TLog.d("            Uuids                =" + result.getDevice().getUuids());
-//					TLog.d("aaaaa DataStatus                 =" + result.getDataStatus());
-//					TLog.d("aaaaa PeriodicAdvertisingInterval=" + result.getPeriodicAdvertisingInterval());
-//					TLog.d("aaaaa PrimaryPhy                 =" + result.getPrimaryPhy());
-//					TLog.d("aaaaa Rssi                       =" + result.getRssi());
-//					TLog.d("aaaaa ScanRecord                 =" + result.getScanRecord());
-//					TLog.d("aaaaa TimestampNanos             =" + result.getTimestampNanos());
-//					TLog.d("aaaaa TxPower                    =" + result.getTxPower());
-//					TLog.d("aaaaa Class                      =" + result.getClass());
+//					TLog.d("aaaaa AdvertisingSid             =" + result.getAdvertisingSid());				//aaaaa AdvertisingSid             =255
+//					TLog.d("aaaaa device                     =" + result.getDevice());						//aaaaa device                     =65:57:FE:6F:E6:D9
+//					TLog.d("            Name                 =" + result.getDevice().getName());				//            Name                 =null
+//					TLog.d("            Address              =" + result.getDevice().getAddress());			//            Address              =65:57:FE:6F:E6:D9
+//					TLog.d("            Class                =" + result.getDevice().getClass());				//            Class                =class android.bluetooth.BluetoothDevice
+//					TLog.d("            BluetoothClass       =" + result.getDevice().getBluetoothClass());	//            BluetoothClass       =0
+//					TLog.d("            BondState            =" + result.getDevice().getBondState());			//            BondState            =10
+//					TLog.d("            Type                 =" + result.getDevice().getType());				//            Type                 =0
+//					TLog.d("            Uuids                =" + result.getDevice().getUuids());				//            Uuids                =null
+//					TLog.d("aaaaa DataStatus                 =" + result.getDataStatus());					//aaaaa DataStatus                 =0
+//					TLog.d("aaaaa PeriodicAdvertisingInterval=" + result.getPeriodicAdvertisingInterval());	//aaaaa PeriodicAdvertisingInterval=0
+//					TLog.d("aaaaa PrimaryPhy                 =" + result.getPrimaryPhy());					//aaaaa PrimaryPhy                 =1
+//					TLog.d("aaaaa Rssi                       =" + result.getRssi());							//aaaaa Rssi                       =-79
+//					TLog.d("aaaaa ScanRecord                 =" + result.getScanRecord());					//aaaaa ScanRecord                 =ScanRecord [mAdvertiseFlags=26, mServiceUuids=null, mServiceSolicitationUuids=[], mManufacturerSpecificData={76=[16, 5, 25, 28, 64, 39, -24]}, mServiceData={}, mTxPowerLevel=12, mDeviceName=null]
+//					TLog.d("aaaaa TimestampNanos             =" + result.getTimestampNanos());				//aaaaa TimestampNanos             =13798346768432
+//					TLog.d("aaaaa TxPower                    =" + result.getTxPower());						//aaaaa TxPower                    =127
+//					TLog.d("aaaaa Class                      =" + result.getClass());							//aaaaa Class                      =class android.bluetooth.le.ScanResult
 //					TLog.d("----------------------------------");
 //				}
 			}

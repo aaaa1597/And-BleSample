@@ -28,7 +28,7 @@
         </activity>
         <activity android:name=".DeviceConnectActivity" />
 
-        <service android:name=".CentralService"
+        <service android:name=".BleMngService"
             android:enabled="true"
             android:exported="false"/>
 

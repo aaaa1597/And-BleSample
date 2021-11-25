@@ -19,6 +19,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
+
 import static com.test.blesample.central.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
 import static com.test.blesample.central.Constants.HEART_RATE_SERVICE_UUID;
 import static com.test.blesample.central.Constants.SERVER_MSG_FIRST_STATE;
@@ -29,7 +31,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	public static final String EXTRAS_DEVICE_ADDRESS= "DEVICE_ADDRESS";
 
 	private final ArrayList<ArrayList<BluetoothGattCharacteristic>> mDeviceServices = new ArrayList<>();
-	private CentralService				mBluetoothLeService;
+	private BleMngService				mBLeMngServ;
 	private BluetoothGattCharacteristic	mCharacteristic;
 	private String						mDeviceAddress;
 
@@ -37,18 +39,20 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	private final ServiceConnection mCon = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName componentName, IBinder service) {
-			mBluetoothLeService = ((CentralService.LocalBinder)service).getService();
-			if (!mBluetoothLeService.initialize()) {
-				Log.e("aaaaa", "Unable to initialize Bluetooth");
-				finish();
+			TLog.d("BLE管理サービス接続-確立");
+			mBLeMngServ = ((BleMngService.LocalBinder)service).getService();
+			if (!mBLeMngServ.initBle()) {
+				Log.e("aaaaa", "initBLE Failed!!");
+				ErrPopUp.create(DeviceConnectActivity.this).setErrMsg("Service起動に失敗!!終了します。").Show(DeviceConnectActivity.this);
 			}
 
-			// Automatically connects to the device upon successful start-up initialization.
-			mBluetoothLeService.connect(mDeviceAddress);
+			boolean ret = mBLeMngServ.connect(mDeviceAddress);
+			if( !ret)
+				Snackbar.make(findViewById(R.id.root_view_device), "デバイス接続失敗!!\n前画面で、別のデバイスを選択して下さい。", Snackbar.LENGTH_LONG).show();
 		}
 		@Override
 		public void onServiceDisconnected(ComponentName componentName) {
-			mBluetoothLeService = null;
+			mBLeMngServ = null;
 		}
 	};
 
@@ -62,21 +66,21 @@ public class DeviceConnectActivity extends AppCompatActivity {
 			requestReadCharacteristic();
 		});
 
-		/* BLE通信用サービス起動 */
-		Intent gattServiceIntent = new Intent(this, CentralService.class);
-		bindService(gattServiceIntent, mCon, BIND_AUTO_CREATE);
+		/* BLE管理サービス起動 */
+		TLog.d("BLE管理サービス起動");
+		Intent intent = new Intent(this, BleMngService.class);
+		bindService(intent, mCon, BIND_AUTO_CREATE);
 
-		/* 引継ぎデータ取得 */
-		Intent intent = getIntent();
-		if(intent == null)
-			return;
+		/* MainActivityからの引継ぎデータ取得 */
+		Intent intentfromMainActivity = getIntent();
+		if(intentfromMainActivity == null) return;
 
 		/* デバイス名設定 */
-		String deviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
+		String deviceName = intentfromMainActivity.getStringExtra(EXTRAS_DEVICE_NAME);
 		((TextView)findViewById(R.id.connected_device_name)).setText(TextUtils.isEmpty(deviceName) ? "" : deviceName);
 
 		/* デバイスaddress保持 */
-		mDeviceAddress  = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
+		mDeviceAddress  = intentfromMainActivity.getStringExtra(EXTRAS_DEVICE_ADDRESS);
 	}
 
 
@@ -98,7 +102,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	protected void onDestroy() {
 		super.onDestroy();
 		unbindService(mCon);
-		mBluetoothLeService = null;
+		mBLeMngServ = null;
 	}
 
 	/*
@@ -106,8 +110,8 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	this request is asynchronous.
 	 */
 	private void requestReadCharacteristic() {
-		if (mBluetoothLeService != null && mCharacteristic != null) {
-			mBluetoothLeService.readCharacteristic(mCharacteristic);
+		if (mBLeMngServ != null && mCharacteristic != null) {
+			mBLeMngServ.readCharacteristic(mCharacteristic);
 		} else {
 			Snackbar.make(findViewById(R.id.root_view_device), "Unknown error.", Snackbar.LENGTH_LONG).show();
 		}
@@ -123,38 +127,40 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	private final BroadcastReceiver mGattIntentListner = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-
 			String action = intent.getAction();
-
-			if (action == null) {
+			if (action == null)
 				return;
-			}
 
-			switch (intent.getAction()) {
-
-				case CentralService.UWS_GATT_CONNECTED:
-					updateConnectionState(R.string.connected);
-                    findViewById(R.id.btn_req_read_characteristic).setEnabled(true);
+			switch (action) {
+				/* Gattサーバ接続完了 */
+				case BleMngService.UWS_GATT_CONNECTED:
+					runOnUiThread(() -> {
+						/* 表示 : Connected */
+						((TextView)findViewById(R.id.connection_status)).setText(R.string.connected);
+					});
+					findViewById(R.id.btn_req_read_characteristic).setEnabled(true);
 					break;
 
-				case CentralService.UWS_GATT_DISCONNECTED:
-					updateConnectionState(R.string.disconnected);
-                    findViewById(R.id.btn_req_read_characteristic).setEnabled(false);
+				/* Gattサーバ断 */
+				case BleMngService.UWS_GATT_DISCONNECTED:
+					runOnUiThread(() -> {
+						/* 表示 : Disconnected */
+						((TextView)findViewById(R.id.connection_status)).setText(R.string.disconnected);
+					});
+					findViewById(R.id.btn_req_read_characteristic).setEnabled(false);
 					break;
 
-
-				case CentralService.UWS_GATT_SERVICES_DISCOVERED:
+				case BleMngService.UWS_GATT_SERVICES_DISCOVERED:
 					// set all the supported services and characteristics on the user interface.
-					setGattServices(mBluetoothLeService.getSupportedGattServices());
+					setGattServices(mBLeMngServ.getSupportedGattServices());
 					registerCharacteristic();
 					break;
 
-				case CentralService.UWS_DATA_AVAILABLE:
-					int msg = intent.getIntExtra(CentralService.UWS_DATA, -1);
+				case BleMngService.UWS_DATA_AVAILABLE:
+					int msg = intent.getIntExtra(BleMngService.UWS_DATA, -1);
 					Log.v("aaaaa", "ACTION_DATA_AVAILABLE " + msg);
 					updateInputFromServer(msg);
 					break;
-
 			}
 		}
 	};
@@ -196,20 +202,15 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		*/
 
 		if (characteristic != null) {
-			mBluetoothLeService.readCharacteristic(characteristic);
-			mBluetoothLeService.setCharacteristicNotification(characteristic, true);
+			mBLeMngServ.readCharacteristic(characteristic);
+			mBLeMngServ.setCharacteristicNotification(characteristic, true);
 		}
 	}
 
 
-	/*
-	Demonstrates how to iterate through the supported GATT Services/Characteristics.
-	*/
 	private void setGattServices(List<BluetoothGattService> gattServices) {
-
-		if (gattServices == null) {
+		if (gattServices == null)
 			return;
-		}
 
 		mDeviceServices.clear();
 
@@ -222,23 +223,12 @@ public class DeviceConnectActivity extends AppCompatActivity {
 
 	}
 
-
-	private void updateConnectionState(final int resourceId) {
-		runOnUiThread(new Runnable() {
-			@Override
-			public void run() {
-				((TextView)findViewById(R.id.connection_status)).setText(resourceId);
-			}
-		});
-	}
-
-
 	private static IntentFilter makeGattUpdateIntentFilter() {
 		final IntentFilter intentFilter = new IntentFilter();
-		intentFilter.addAction(CentralService.UWS_GATT_CONNECTED);
-		intentFilter.addAction(CentralService.UWS_GATT_DISCONNECTED);
-		intentFilter.addAction(CentralService.UWS_GATT_SERVICES_DISCOVERED);
-		intentFilter.addAction(CentralService.UWS_DATA_AVAILABLE);
+		intentFilter.addAction(BleMngService.UWS_GATT_CONNECTED);
+		intentFilter.addAction(BleMngService.UWS_GATT_DISCONNECTED);
+		intentFilter.addAction(BleMngService.UWS_GATT_SERVICES_DISCOVERED);
+		intentFilter.addAction(BleMngService.UWS_DATA_AVAILABLE);
 		return intentFilter;
 	}
 
