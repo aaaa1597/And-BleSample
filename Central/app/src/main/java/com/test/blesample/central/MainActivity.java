@@ -47,7 +47,9 @@ public class MainActivity extends BluetoothActivity {
 		mDeviceListAdapter = new DeviceListAdapter(new DeviceListAdapter.DevicesAdapterListener() {
 			@Override
 			public void onDeviceItemClick(String deviceName, String deviceAddress) {
-				//stopScanning();
+				/* 接続画面に遷移 */
+				mBLeScanner.stopScan(mScanCallback);
+				mScanCallback = null;
 				Intent intent = new Intent(MainActivity.this, DeviceConnectActivity.class);
 				intent.putExtra(DeviceConnectActivity.EXTRAS_DEVICE_NAME	, deviceName);
 				intent.putExtra(DeviceConnectActivity.EXTRAS_DEVICE_ADDRESS	, deviceAddress);

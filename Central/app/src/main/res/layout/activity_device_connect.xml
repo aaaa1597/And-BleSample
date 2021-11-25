@@ -10,20 +10,11 @@
     android:gravity="center_horizontal"
     tools:context="com.test.blesample.central.DeviceConnectActivity">
 
-    <android.support.v7.widget.Toolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"/>
-
-
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/connected_device_name_label"
         android:layout_marginTop="64dp"/>
-
 
     <TextView
         android:id="@+id/connected_device_name"
@@ -31,13 +22,11 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"/>
 
-
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/connection_status_label"
         android:layout_marginTop="32dp"/>
-
 
     <TextView
         android:id="@+id/connection_status"
@@ -46,23 +35,20 @@
         android:layout_marginTop="8dp"
         android:text="-"/>
 
-
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/server_characteristic_label"
         android:layout_marginTop="32dp"/>
 
-
     <ImageView
-        android:id="@+id/server_characteristic_value"
+        android:id="@+id/imv_characteristic_value"
         android:layout_width="100dp"
         android:layout_height="100dp"
-        android:layout_marginTop="16dp"/>
-
+        android:layout_marginTop="16dp" />
 
     <Button
-        android:id="@+id/request_read_characteristic"
+        android:id="@+id/btn_req_read_characteristic"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textColor="@android:color/white"
@@ -72,6 +58,5 @@
         android:background="#BDBDBD"
         android:padding="8dp"
         android:elevation="4dp"/>
-
 
 </LinearLayout>
