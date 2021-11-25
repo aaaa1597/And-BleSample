@@ -22,8 +22,8 @@
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>
     <string name="central_connection_screen">Central Connection screen</string>
-    <string name="connection_status_label">Connection Status</string>
-    <string name="connected_device_name_label">Connected Device Name</string>
+    <string name="lblstr_connection_status">Connection Status : </string>
+    <string name="lblstr_connected_device_name">Connected Device Name : </string>
     <string name="server_characteristic_label">Server Characteristic value</string>
     <string name="status_error_when_connecting">An error occurred when connecting to a device. Error Code</string>
     <string name="choose_color">Choose color</string>

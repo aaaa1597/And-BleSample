@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<android.support.constraint.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -11,52 +11,76 @@
     tools:context="com.test.blesample.central.DeviceConnectActivity">
 
     <TextView
+        android:id="@+id/lbl_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/connected_device_name_label"
-        android:layout_marginTop="64dp"/>
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:text="@string/lblstr_connected_device_name"
+        android:layout_marginTop="64dp"
+        android:layout_marginEnd="64dp"
+        />
 
     <TextView
-        android:id="@+id/connected_device_name"
+        android:id="@+id/txtConnectedDeviceName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"/>
+        app:layout_constraintTop_toTopOf="@+id/lbl_name"
+        app:layout_constraintLeft_toRightOf="@+id/lbl_name"
+        android:textSize="32sp" />
 
     <TextView
+        android:id="@+id/lbl_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/connection_status_label"
-        android:layout_marginTop="32dp"/>
+        android:text="@string/lblstr_connection_status"
+        app:layout_constraintTop_toBottomOf="@+id/lbl_name"
+        app:layout_constraintLeft_toLeftOf="@+id/lbl_name"
+        android:layout_marginTop="20dp"
+        />
 
     <TextView
-        android:id="@+id/connection_status"
+        android:id="@+id/txtConnectionStatus"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@+id/lbl_name"
+        app:layout_constraintLeft_toRightOf="@+id/lbl_status"
+        android:layout_marginTop="20dp"
+        android:textSize="32sp"
         android:text="-"/>
 
     <TextView
+        android:id="@+id/lbl_value"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/server_characteristic_label"
-        android:layout_marginTop="32dp"/>
+        app:layout_constraintTop_toBottomOf="@+id/lbl_status"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginTop="20dp"/>
 
     <ImageView
-        android:id="@+id/imv_characteristic_value"
+        android:id="@+id/imvCharacteristicValue"
+        app:layout_constraintTop_toBottomOf="@+id/lbl_value"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
         android:layout_width="100dp"
         android:layout_height="100dp"
         android:layout_marginTop="16dp" />
 
     <Button
-        android:id="@+id/btn_req_read_characteristic"
+        android:id="@+id/btnReqReadCharacteristic"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@+id/imvCharacteristicValue"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
         android:textColor="@android:color/white"
         android:text="@string/request_read_characteristic"
         android:layout_marginTop="32dp"
+        android:padding="5dp"
         android:enabled="false"
-        android:background="#BDBDBD"
-        android:padding="8dp"
-        android:elevation="4dp"/>
+        android:background="#BDBDBD"/>
 
-</LinearLayout>
+</android.support.constraint.ConstraintLayout>

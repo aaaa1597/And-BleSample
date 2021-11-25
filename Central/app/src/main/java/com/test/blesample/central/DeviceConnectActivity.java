@@ -8,7 +8,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.graphics.Color;
 import android.os.IBinder;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
@@ -19,16 +18,12 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.Scanner;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.test.blesample.central.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
 import static com.test.blesample.central.Constants.HEART_RATE_SERVICE_UUID;
-import static com.test.blesample.central.Constants.SERVER_MSG_FIRST_STATE;
-import static com.test.blesample.central.Constants.SERVER_MSG_SECOND_STATE;
+import static com.test.blesample.central.Constants.BLEMSG_1;
 
 public class DeviceConnectActivity extends AppCompatActivity {
 	public static final String EXTRAS_DEVICE_NAME	= "DEVICE_NAME";
@@ -66,7 +61,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		setContentView(R.layout.activity_device_connect);
 
 		/* 読出し要求ボタン */
-		findViewById(R.id.btn_req_read_characteristic).setOnClickListener(view -> {
+		findViewById(R.id.btnReqReadCharacteristic).setOnClickListener(view -> {
 			if (mBLeMngServ != null && mCharacteristic != null) {
 				mBLeMngServ.readCharacteristic(mCharacteristic);
 			}
@@ -86,7 +81,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 
 		/* デバイス名設定 */
 		String deviceName = intentfromMainActivity.getStringExtra(EXTRAS_DEVICE_NAME);
-		((TextView)findViewById(R.id.connected_device_name)).setText(TextUtils.isEmpty(deviceName) ? "" : deviceName);
+		((TextView)findViewById(R.id.txtConnectedDeviceName)).setText(TextUtils.isEmpty(deviceName) ? "" : deviceName);
 
 		/* デバイスaddress保持 */
 		mDeviceAddress  = intentfromMainActivity.getStringExtra(EXTRAS_DEVICE_ADDRESS);
@@ -96,14 +91,23 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	protected void onResume() {
 		super.onResume();
 		/* 受信するブロードキャストintentを登録 */
-		registerReceiver(mGattIntentListner, makeGattUpdateIntentFilter());
+		registerReceiver(mIntentListner, getIntentFilter());
+	}
+
+	private static IntentFilter getIntentFilter() {
+		final IntentFilter intentFilter = new IntentFilter();
+		intentFilter.addAction(BleMngService.UWS_GATT_CONNECTED);
+		intentFilter.addAction(BleMngService.UWS_GATT_DISCONNECTED);
+		intentFilter.addAction(BleMngService.UWS_GATT_SERVICES_DISCOVERED);
+		intentFilter.addAction(BleMngService.UWS_DATA_AVAILABLE);
+		return intentFilter;
 	}
 
 	@Override
 	protected void onPause() {
 		super.onPause();
 		/* 設定したブロードキャストintentを解除 */
-		unregisterReceiver(mGattIntentListner);
+		unregisterReceiver(mIntentListner);
 	}
 
 	@Override
@@ -113,7 +117,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		mBLeMngServ = null;
 	}
 
-	private final BroadcastReceiver mGattIntentListner = new BroadcastReceiver() {
+	private final BroadcastReceiver mIntentListner = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			String action = intent.getAction();
@@ -125,18 +129,18 @@ public class DeviceConnectActivity extends AppCompatActivity {
 				case BleMngService.UWS_GATT_CONNECTED:
 					runOnUiThread(() -> {
 						/* 表示 : Connected */
-						((TextView)findViewById(R.id.connection_status)).setText(R.string.connected);
+						((TextView)findViewById(R.id.txtConnectionStatus)).setText(R.string.connected);
 					});
-					findViewById(R.id.btn_req_read_characteristic).setEnabled(true);
+					findViewById(R.id.btnReqReadCharacteristic).setEnabled(true);
 					break;
 
 				/* Gattサーバ断 */
 				case BleMngService.UWS_GATT_DISCONNECTED:
 					runOnUiThread(() -> {
 						/* 表示 : Disconnected */
-						((TextView)findViewById(R.id.connection_status)).setText(R.string.disconnected);
+						((TextView)findViewById(R.id.txtConnectionStatus)).setText(R.string.disconnected);
 					});
-					findViewById(R.id.btn_req_read_characteristic).setEnabled(false);
+					findViewById(R.id.btnReqReadCharacteristic).setEnabled(false);
 					break;
 
 				case BleMngService.UWS_GATT_SERVICES_DISCOVERED:
@@ -149,8 +153,8 @@ public class DeviceConnectActivity extends AppCompatActivity {
 
 				case BleMngService.UWS_DATA_AVAILABLE:
 					int msg = intent.getIntExtra(BleMngService.UWS_DATA, -1);
-					TLog.d("ACTION_DATA_AVAILABLE " + msg);
-					updateInputFromServer(msg);
+					TLog.d("RcvData =" + msg);
+					rcvData(msg);
 					break;
 			}
 		}
@@ -171,36 +175,8 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		return ret;
 	}
 
-	private static IntentFilter makeGattUpdateIntentFilter() {
-		final IntentFilter intentFilter = new IntentFilter();
-		intentFilter.addAction(BleMngService.UWS_GATT_CONNECTED);
-		intentFilter.addAction(BleMngService.UWS_GATT_DISCONNECTED);
-		intentFilter.addAction(BleMngService.UWS_GATT_SERVICES_DISCOVERED);
-		intentFilter.addAction(BleMngService.UWS_DATA_AVAILABLE);
-		return intentFilter;
-	}
-
-
-	private void updateInputFromServer(int msg) {
-
-		String color;
-
-		switch (msg) {
-			case SERVER_MSG_FIRST_STATE:
-				color = "#AD1457";
-				break;
-
-			case SERVER_MSG_SECOND_STATE:
-				color = "#6A1B9A";
-				break;
-
-			default:
-				color = "#FFFFFF";
-				break;
-
-		}
-
-		((ImageView)findViewById(R.id.imv_characteristic_value)).setBackgroundColor(Color.parseColor(color));
+	private void rcvData(int msg) {
+		((ImageView)findViewById(R.id.imvCharacteristicValue)).setImageResource(msg==BLEMSG_1 ? R.drawable.num1 : R.drawable.num2);
 		Snackbar.make(findViewById(R.id.root_view_device), "Characteristic value received: "+msg, Snackbar.LENGTH_LONG).show();
 	}
 }
