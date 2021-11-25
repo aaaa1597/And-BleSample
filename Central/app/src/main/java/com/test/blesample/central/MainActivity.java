@@ -1,72 +1,67 @@
 package com.test.blesample.central;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.Manifest;
-import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
+import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.support.design.widget.Snackbar;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.widget.Toast;
+import android.widget.Button;
 
-public class MainActivity extends AppCompatActivity {
-	private BluetoothAdapter	mBluetoothAdapter = null;
-	private BluetoothLeScanner  mBluetoothLeScanner = null;
-	private ScanCallback		mScanCallback = new ScanCallback() {
-		@Override
-		public void onScanResult(int callbackType, ScanResult result) {
-			super.onScanResult(callbackType, result);
-			if(result !=null && result.getDevice() != null) {
-				Log.d("aaaaa","aaaaa AdvertisingSid             =" + result.getAdvertisingSid());
-				Log.d("aaaaa","aaaaa devices                    =" + result.getDevice());
-				Log.d("aaaaa","aaaaa DataStatus                 =" + result.getDataStatus());
-				Log.d("aaaaa","aaaaa PeriodicAdvertisingInterval=" + result.getPeriodicAdvertisingInterval());
-				Log.d("aaaaa","aaaaa PrimaryPhy                 =" + result.getPrimaryPhy());
-				Log.d("aaaaa","aaaaa Rssi                       =" + result.getRssi());
-				Log.d("aaaaa","aaaaa ScanRecord                 =" + result.getScanRecord());
-				Log.d("aaaaa","aaaaa TimestampNanos             =" + result.getTimestampNanos());
-				Log.d("aaaaa","aaaaa TxPower                    =" + result.getTxPower());
-				Log.d("aaaaa","aaaaa Class                      =" + result.getClass());
-			}
-		}
+import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.List;
 
-		@Override
-		public void onScanFailed(int errorCode) {
-			super.onScanFailed(errorCode);
-			Log.d("aaaaa","aaaaa Bluetoothのscan失敗!! errorCode=" + errorCode);
-		}
-	};
-
-	ActivityResultLauncher<Intent> mStartForResult = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
-			result -> {
-				Log.d("aaaaa", "bt-onResult() s");
-				if (result.getResultCode() == Activity.RESULT_OK) {
-					/* Bluetooth機能ONになった */
-					Log.d("aaaaa", "Bluetooth OFF -> ON");
-					startCentral();
-				}
-				else {
-					ErrPopUp.create(MainActivity.this).setErrMsg("Bluetoothを有効にする必要があります。").Show(MainActivity.this);
-				}
-				Log.d("aaaaa", "bt-onResult() e");
-			});
-	private final static int REQUEST_PERMISSIONS = 0x2222;
+public class MainActivity extends BluetoothActivity {
+	private BluetoothAdapter						mBluetoothAdapter = null;
+	private DeviceListAdapter						mDeviceListAdapter;
+	private Handler									mHandler;
+	private ScanCallback							mScanCallback = null;
+	private BluetoothLeScanner						mBLeScanner;
+	private final static int  REQUEST_ENABLE_BT		= 0x1111;
+	private final static int  REQUEST_PERMISSIONS	= 0x2222;
+	private final static long SCAN_PERIOD			= 30000;	/* m秒 */
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		Log.d("aaaaa","aaaaa aaaaaaaaaaaaaa=");
+		/* BLEデバイスリストの初期化 */
+		RecyclerView deviceListRvw = findViewById(R.id.rvw_devices);
+		deviceListRvw.setHasFixedSize(true);
+		deviceListRvw.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
+		mDeviceListAdapter = new DeviceListAdapter(new DeviceListAdapter.DevicesAdapterListener() {
+			@Override
+			public void onDeviceItemClick(String deviceName, String deviceAddress) {
+				//stopScanning();
+				Intent intent = new Intent(MainActivity.this, DeviceConnectActivity.class);
+				intent.putExtra(DeviceConnectActivity.EXTRAS_DEVICE_NAME	, deviceName);
+				intent.putExtra(DeviceConnectActivity.EXTRAS_DEVICE_ADDRESS	, deviceAddress);
+				startActivity(intent);
+			}
+		});
+		deviceListRvw.setAdapter(mDeviceListAdapter);
+
+		findViewById(R.id.btnScan).setOnClickListener(view -> {
+			startBLEScan();
+		});
+
+		/* UIスレッド非同期管理 */
+		mHandler = new Handler(Looper.getMainLooper());
 
 		/* Bluetoothのサポート状況チェック 未サポート端末なら起動しない */
 		if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
@@ -75,66 +70,155 @@ public class MainActivity extends AppCompatActivity {
 
 		/* 権限が許可されていない場合はリクエスト. */
 		if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-			Log.d("aaaaa", "requestPermissions s");
 			requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_PERMISSIONS);
-			Log.d("aaaaa", "requestPermissions e");
 		}
 
-		/* Bluetooth ON/OFF判定 -> OFFならONにするようにリクエスト */
 		final BluetoothManager bluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
 		mBluetoothAdapter = bluetoothManager.getAdapter();
+		/* Bluetooth未サポート判定 未サポートならエラーpopupで終了 */
 		if (mBluetoothAdapter == null) {
 			ErrPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
-			return;
 		}
+		/* Bluetooth ON/OFF判定 -> OFFならONにするようにリクエスト */
 		else if( !mBluetoothAdapter.isEnabled()) {
 			Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-			mStartForResult.launch(enableBtIntent);
+			startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
 		}
 		else {
 			/* Bluetooth機能ONだった */
-			startCentral();
+			startBLEScan();
 		}
 	}
 
 	@Override
-	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-		Log.d("aaaaa", "onRequestPermissionsResult s");
-		/* 権限リクエストの結果を取得する. */
-		if (requestCode == REQUEST_PERMISSIONS) {
-			if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-				/* Bluetooth使用の権限を得た */
-				startCentral();
-			} else {
-				ErrPopUp.create(MainActivity.this).setErrMsg("失敗しました。\n\"許可\"を押下して、このアプリにBluetoothの権限を与えて下さい。\n終了します。").Show(MainActivity.this);
-			}
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+		if(requestCode == REQUEST_ENABLE_BT) {
+			/* Bluetooth機能ONになった。 */
+			startBLEScan();
 		}
-		/* 知らん応答なのでスルー。 */
 		else {
-			super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+			ErrPopUp.create(MainActivity.this).setErrMsg("Bluetooth機能をONにする必要があります。").Show(MainActivity.this);
 		}
-		Log.d("aaaaa", "onRequestPermissionsResult e");
 	}
 
-	/* セントラルとして起動 */
-	private void startCentral() {
-		Log.d("aaaaa", "startCentral() *******************");
-		/* Bluetooth機能がONになってないのでreturn */
-		if( !mBluetoothAdapter.isEnabled()) {
-			Log.d("aaaaa", "startPrepare() e Bluetooth機能がOFFってる。");
+	/*
+	start Bluetooth Low Energy scan
+	 */
+	private void startBLEScan() {
+		TLog.d("s");
+
+		if(mScanCallback != null) {
+			TLog.d("e すでにscan中。");
 			return;
 		}
-		Log.d("aaaaa", "Bluetooth ON.");
+
+		/* Bluetooth機能がONになってないのでreturn */
+		if( !mBluetoothAdapter.isEnabled()) {
+			TLog.d("e Bluetooth機能がOFFってる。");
+			Snackbar.make(findViewById(R.id.root_view), "Bluetooth機能をONにして下さい。", Snackbar.LENGTH_LONG).show();
+			return;
+		}
+		TLog.d("Bluetooth ON.");
 
 		/* Bluetooth使用の権限がないのでreturn */
 		if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-			Log.d("aaaaa", "startPrepare() e Bluetooth使用の権限が拒否られた。");
+			TLog.d( "startPrepare() e Bluetooth使用の権限が拒否られた。");
+			ErrPopUp.create(MainActivity.this).setErrMsg("このアプリに権限を与えて下さい。").Show(MainActivity.this);
 			return;
 		}
-		Log.d("aaaaa", "Bluetooth使用権限OK.");
+		TLog.d( "Bluetooth使用権限OK.");
+
+		TLog.d("scan開始");
+		mDeviceListAdapter.clearDevice();
+		runOnUiThread(() -> {
+			Button btn = findViewById(R.id.btnScan);
+			btn.setText("scan中");
+			btn.setEnabled(false);
+		});
+
+		mScanCallback = new ScanCallback() {
+			@Override
+			public void onBatchScanResults(List<ScanResult> results) {
+				super.onBatchScanResults(results);
+				mDeviceListAdapter.addDevice(results);
+//				for(ScanResult result : results) {
+//					TLog.d("---------------------------------- size=" + results.size());
+//					TLog.d("aaaaa AdvertisingSid             =" + result.getAdvertisingSid());
+//					TLog.d("aaaaa device                     =" + result.getDevice());
+//					TLog.d("            Name                 =" + result.getDevice().getName());
+//					TLog.d("            Address              =" + result.getDevice().getAddress());
+//					TLog.d("            Class                =" + result.getDevice().getClass());
+//					TLog.d("            BluetoothClass       =" + result.getDevice().getBluetoothClass());
+//					TLog.d("            BondState            =" + result.getDevice().getBondState());
+//					TLog.d("            Type                 =" + result.getDevice().getType());
+//					TLog.d("            Uuids                =" + result.getDevice().getUuids());
+//					TLog.d("aaaaa DataStatus                 =" + result.getDataStatus());
+//					TLog.d("aaaaa PeriodicAdvertisingInterval=" + result.getPeriodicAdvertisingInterval());
+//					TLog.d("aaaaa PrimaryPhy                 =" + result.getPrimaryPhy());
+//					TLog.d("aaaaa Rssi                       =" + result.getRssi());
+//					TLog.d("aaaaa ScanRecord                 =" + result.getScanRecord());
+//					TLog.d("aaaaa TimestampNanos             =" + result.getTimestampNanos());
+//					TLog.d("aaaaa TxPower                    =" + result.getTxPower());
+//					TLog.d("aaaaa Class                      =" + result.getClass());
+//					TLog.d("----------------------------------");
+//				}
+			}
+
+			@Override
+			public void onScanResult(int callbackType, ScanResult result) {
+				super.onScanResult(callbackType, result);
+				mDeviceListAdapter.addDevice(result);
+//				if(result !=null && result.getDevice() != null) {
+//					TLog.d("----------------------------------");
+//					TLog.d("aaaaa AdvertisingSid             =" + result.getAdvertisingSid());
+//					TLog.d("aaaaa device                     =" + result.getDevice());
+//					TLog.d("            Name                 =" + result.getDevice().getName());
+//					TLog.d("            Address              =" + result.getDevice().getAddress());
+//					TLog.d("            Class                =" + result.getDevice().getClass());
+//					TLog.d("            BluetoothClass       =" + result.getDevice().getBluetoothClass());
+//					TLog.d("            BondState            =" + result.getDevice().getBondState());
+//					TLog.d("            Type                 =" + result.getDevice().getType());
+//					TLog.d("            Uuids                =" + result.getDevice().getUuids());
+//					TLog.d("aaaaa DataStatus                 =" + result.getDataStatus());
+//					TLog.d("aaaaa PeriodicAdvertisingInterval=" + result.getPeriodicAdvertisingInterval());
+//					TLog.d("aaaaa PrimaryPhy                 =" + result.getPrimaryPhy());
+//					TLog.d("aaaaa Rssi                       =" + result.getRssi());
+//					TLog.d("aaaaa ScanRecord                 =" + result.getScanRecord());
+//					TLog.d("aaaaa TimestampNanos             =" + result.getTimestampNanos());
+//					TLog.d("aaaaa TxPower                    =" + result.getTxPower());
+//					TLog.d("aaaaa Class                      =" + result.getClass());
+//					TLog.d("----------------------------------");
+//				}
+			}
+
+			@Override
+			public void onScanFailed(int errorCode) {
+				super.onScanFailed(errorCode);
+				TLog.d("aaaaa scan失敗!! errorCode=" + errorCode);
+			}
+		};
 
 		/* Bluetoothサポート有,Bluetooth使用権限有,Bluetooth ONなので、セントラルとして起動 */
-		mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
-		mBluetoothLeScanner.startScan(mScanCallback);
+		mBLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
+
+		mHandler.postDelayed(() -> {
+			mBLeScanner.stopScan(mScanCallback);
+			Button btn = findViewById(R.id.btnScan);
+			btn.setText("scan開始");
+			btn.setEnabled(true);
+			TLog.d("scan終了");
+			mScanCallback = null;
+		}, SCAN_PERIOD);
+
+		/* scanフィルタ */
+		List<ScanFilter> scanFilters = new ArrayList<>();
+		scanFilters.add(new ScanFilter.Builder().build());
+
+		/* scan設定 */
+		ScanSettings.Builder scansetting = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER);
+
+		/* scan開始 */
+		mBLeScanner.startScan(scanFilters, scansetting.build(), mScanCallback);
 	}
 }

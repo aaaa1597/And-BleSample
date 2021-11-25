@@ -1,7 +1,7 @@
 package com.test.blesample.central;
 
 import android.app.Activity;
-import android.util.Log;
+import android.support.v4.content.res.ResourcesCompat;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -9,8 +9,6 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.PopupWindow;
 import android.widget.TextView;
-
-import androidx.core.content.res.ResourcesCompat;
 
 public class ErrPopUp extends PopupWindow {
 	/* コンストラクタ */
@@ -23,8 +21,6 @@ public class ErrPopUp extends PopupWindow {
 		ErrPopUp retwindow = new ErrPopUp(activity);
 		View popupView = activity.getLayoutInflater().inflate(R.layout.popup_layout, null);
 		popupView.findViewById(R.id.btnClose).setOnClickListener(v -> {
-//                if (mClosePopup.isShowing())
-//                    mClosePopup.dismiss();
 			android.os.Process.killProcess(android.os.Process.myPid());
 		});
 		retwindow.setContentView(popupView);
