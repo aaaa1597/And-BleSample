@@ -87,6 +87,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
+		/* 受信するブロードキャストintentを登録 */
 		registerReceiver(mGattIntentListner, makeGattUpdateIntentFilter());
 	}
 
@@ -94,6 +95,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	@Override
 	protected void onPause() {
 		super.onPause();
+		/* 設定したブロードキャストintentを解除 */
 		unregisterReceiver(mGattIntentListner);
 	}
 
@@ -112,7 +114,8 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	private void requestReadCharacteristic() {
 		if (mBLeMngServ != null && mCharacteristic != null) {
 			mBLeMngServ.readCharacteristic(mCharacteristic);
-		} else {
+		}
+		else {
 			Snackbar.make(findViewById(R.id.root_view_device), "Unknown error.", Snackbar.LENGTH_LONG).show();
 		}
 	}

@@ -292,19 +292,9 @@ public class BleMngService extends Service {
 		TLog.d("setCharacteristicNotification() e");
 	}
 
-	/**
-	 * Retrieves a list of supported GATT services on the connected device. This should be
-	 * invoked only after {@code BluetoothGatt#discoverServices()} completes successfully.
-	 *
-	 * @return A {@code List} of supported services.
-	 */
 	public List<BluetoothGattService> getSupportedGattServices() {
-		TLog.d("getSupportedGattServices() s");
-		if (mBleGatt == null) {
+		if (mBleGatt == null)
 			return null;
-		}
-
-		TLog.d("getSupportedGattServices() e");
 		return mBleGatt.getServices();
 	}
 }
