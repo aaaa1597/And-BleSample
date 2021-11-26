@@ -1,4 +1,4 @@
-package itan.com.bluetoothle;
+package com.test.blesample.peripheral;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -11,36 +11,19 @@ import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.widget.RadioGroup;
 import android.widget.Switch;
-
+import android.widget.Toast;
 import java.util.Arrays;
 import java.util.HashSet;
 
-import static itan.com.bluetoothle.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
-import static itan.com.bluetoothle.Constants.HEART_RATE_SERVICE_UUID;
-import static itan.com.bluetoothle.Constants.BLEMSG_1;
-import static itan.com.bluetoothle.Constants.BLEMSG_2;
+import static com.test.blesample.peripheral.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
+import static com.test.blesample.peripheral.Constants.HEART_RATE_SERVICE_UUID;
+import static com.test.blesample.peripheral.Constants.BLEMSG_1;
+import static com.test.blesample.peripheral.Constants.BLEMSG_2;
 
-/**
- BLEシーケンス
- peripheral		central
- 	|				|
- 	|	advertise	|
- 	|-------------->|
- 	|-------------->|
- 	|		・		|
- 	|	scan		|
- 	|<--------------|
- 	|	connect		|
- 	|<--------------|
- 	|	notify		|
- 	|-------------->|
- 	|	receive		|
- 	|<--------------|
- 	|				|
- */
-public class MainActivity extends BluetoothActivity {
+public class MainActivity extends AppCompatActivity {
 
 	private BluetoothGattCharacteristic mSampleCharacteristic;
 
@@ -51,6 +34,7 @@ public class MainActivity extends BluetoothActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main);
 
 		/* Centralへ送信ボタン */
 		findViewById(R.id.button_notify).setOnClickListener(view -> {
@@ -71,18 +55,6 @@ public class MainActivity extends BluetoothActivity {
 		setGattServer();
 		setBluetoothService();
 	}
-
-	@Override
-	protected int getLayoutId() {
-		return R.layout.activity_main;
-	}
-
-
-	@Override
-	protected int getTitleString() {
-		return R.string.peripheral_screen;
-	}
-
 
 	/**
 	 * Starts BLE Advertising by starting {@code PeripheralAdvertiseService}.
@@ -107,8 +79,9 @@ public class MainActivity extends BluetoothActivity {
 		BluetoothManager bluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
 		if (bluetoothManager != null) {
 			mGattServer = bluetoothManager.openGattServer(this, mGattServerCallback);
-		} else {
-			showMsgText(R.string.error_unknown);
+		}
+		else {
+			Toast.makeText(getApplicationContext(), R.string.error_unknown, Toast.LENGTH_LONG).show();
 		}
 	}
 
@@ -207,7 +180,7 @@ public class MainActivity extends BluetoothActivity {
 
 					msg = "Connected to device: " + device.getAddress();
 					TLog.d(msg);
-					showMsgText(msg);
+					Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
 
 				} else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
 
@@ -215,7 +188,7 @@ public class MainActivity extends BluetoothActivity {
 
 					msg = "Disconnected from device";
 					TLog.d(msg);
-					showMsgText(msg);
+					Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
 				}
 
 			}
@@ -224,7 +197,7 @@ public class MainActivity extends BluetoothActivity {
 
 				msg = getString(R.string.status_error_when_connecting) + ": " + status;
 				TLog.e(msg);
-				showMsgText(msg);
+				Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
 
 			}
 		}

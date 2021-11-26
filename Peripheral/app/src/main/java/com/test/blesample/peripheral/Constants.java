@@ -1,4 +1,4 @@
-package itan.com.bluetoothle;
+package com.test.blesample.peripheral;
 
 import java.util.UUID;
 

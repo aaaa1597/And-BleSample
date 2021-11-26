@@ -1,4 +1,4 @@
-package itan.com.bluetoothle;
+package com.test.blesample.peripheral;
 
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
@@ -12,7 +12,6 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.ParcelUuid;
-import android.util.Log;
 
 import java.util.concurrent.TimeUnit;
 
