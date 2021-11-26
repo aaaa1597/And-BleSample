@@ -35,10 +35,7 @@ public class BleMngService extends Service {
 	public final static String UWS_DATA_AVAILABLE			= "com.tks.uws.DATA_AVAILABLE";
 	public final static String UWS_DATA						= "com.tks.uws.DATA";
 	/* Serviceのお約束 */
-	private final IBinder mBinder = new LocalBinder();
-//	private int mConnectionState = STATE_DISCONNECTED;
-	/* Bt通信メンバ */
-	private BluetoothManager	mBtManager;
+	private final IBinder		mBinder = new LocalBinder();
 	private BluetoothAdapter	mBtAdapter;
 	private BluetoothGatt		mBleGatt;
 	private String				mBleDeviceAddr;
@@ -129,16 +126,16 @@ public class BleMngService extends Service {
 
 	@Override
 	public boolean onUnbind(Intent intent) {
-		close();
+		closeBle();
 		return super.onUnbind(intent);
 	}
 
 	/* Bluetooth初期化 */
 	public boolean initBle() {
-		mBtManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
-		if(mBtManager == null) return false;
+		BluetoothManager btManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+		if(btManager == null) return false;
 
-		mBtAdapter = mBtManager.getAdapter();
+		mBtAdapter = btManager.getAdapter();
 		if(mBtAdapter == null) return false;
 
 		return true;
@@ -182,13 +179,13 @@ public class BleMngService extends Service {
 		return true;
 	}
 
-	public void disconnect() {
+	public void disconnectBle() {
 		if (mBtAdapter == null || mBleGatt == null)
 			return;
 		mBleGatt.disconnect();
 	}
 
-	public void close() {
+	public void closeBle() {
 		if (mBleGatt == null)
 			return;
 		mBleGatt.close();
