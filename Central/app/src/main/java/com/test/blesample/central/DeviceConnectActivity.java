@@ -13,7 +13,6 @@ import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
-import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
 import java.util.ArrayList;
@@ -26,8 +25,8 @@ import static com.test.blesample.central.Constants.HEART_RATE_SERVICE_UUID;
 import static com.test.blesample.central.Constants.BLEMSG_1;
 
 public class DeviceConnectActivity extends AppCompatActivity {
-	public static final String EXTRAS_DEVICE_NAME	= "DEVICE_NAME";
-	public static final String EXTRAS_DEVICE_ADDRESS= "DEVICE_ADDRESS";
+	public static final String EXTRAS_DEVICE_NAME	= "com.tks.uws.DEVICE_NAME";
+	public static final String EXTRAS_DEVICE_ADDRESS= "com.tks.uws.DEVICE_ADDRESS";
 
 	private final ArrayList<ArrayList<BluetoothGattCharacteristic>> mDeviceServices = new ArrayList<>();
 	private BleMngService				mBLeMngServ;
@@ -40,16 +39,6 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		public void onServiceConnected(ComponentName componentName, IBinder service) {
 			TLog.d("BLE管理サービス接続-確立");
 			mBLeMngServ = ((BleMngService.LocalBinder)service).getService();
-			/* Bluetooth初期化 */
-			boolean ret = mBLeMngServ.initBle();
-			if( !ret) {
-				Log.e("aaaaa", "initBLE Failed!!");
-				ErrPopUp.create(DeviceConnectActivity.this).setErrMsg("Service起動に失敗!!終了します。").Show(DeviceConnectActivity.this);
-			}
-			/* Bluetooth接続 */
-			boolean ret2 = mBLeMngServ.connect(mDeviceAddress);
-			if( !ret2)
-				Snackbar.make(findViewById(R.id.root_view_device), "デバイス接続失敗!!\n前画面で、別のデバイスを選択して下さい。", Snackbar.LENGTH_LONG).show();
 		}
 		@Override
 		public void onServiceDisconnected(ComponentName componentName) {
@@ -62,6 +51,15 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_device_connect);
 
+		/* 受信するブロードキャストintentを登録 */
+		final IntentFilter intentFilter = new IntentFilter();
+		intentFilter.addAction(BleMngService.UWS_SERVICE_WAKEUP_OK);
+		intentFilter.addAction(BleMngService.UWS_GATT_CONNECTED);
+		intentFilter.addAction(BleMngService.UWS_GATT_DISCONNECTED);
+		intentFilter.addAction(BleMngService.UWS_GATT_SERVICES_DISCOVERED);
+		intentFilter.addAction(BleMngService.UWS_DATA_AVAILABLE);
+		registerReceiver(mIntentListner, intentFilter);
+
 		/* 読出し要求ボタン */
 		findViewById(R.id.btnReqReadCharacteristic).setOnClickListener(view -> {
 			if (mBLeMngServ != null && mCharacteristic != null) {
@@ -72,49 +70,32 @@ public class DeviceConnectActivity extends AppCompatActivity {
 			}
 		});
 
-		/* BLE管理サービス起動 */
-		TLog.d("BLE管理サービス起動");
-		Intent intent = new Intent(this, BleMngService.class);
-		bindService(intent, mCon, BIND_AUTO_CREATE);
-
 		/* MainActivityからの引継ぎデータ取得 */
 		Intent intentfromMainActivity = getIntent();
-		if(intentfromMainActivity == null) return;
+		if(intentfromMainActivity == null) {
+			MsgPopUp.create(DeviceConnectActivity.this).setErrMsg("画面切替え失敗。内部でエラーが発生しました。メーカに問い合わせて下さい。").Show(DeviceConnectActivity.this);
+			finish();
+		}
+
 
 		/* デバイス名設定 */
 		String deviceName = intentfromMainActivity.getStringExtra(EXTRAS_DEVICE_NAME);
 		((TextView)findViewById(R.id.txtConnectedDeviceName)).setText(TextUtils.isEmpty(deviceName) ? "" : deviceName);
 
 		/* デバイスaddress保持 */
-		mDeviceAddress  = intentfromMainActivity.getStringExtra(EXTRAS_DEVICE_ADDRESS);
-	}
+		mDeviceAddress = intentfromMainActivity.getStringExtra(EXTRAS_DEVICE_ADDRESS);
 
-	@Override
-	protected void onResume() {
-		super.onResume();
-		/* 受信するブロードキャストintentを登録 */
-		registerReceiver(mIntentListner, getIntentFilter());
-	}
-
-	private static IntentFilter getIntentFilter() {
-		final IntentFilter intentFilter = new IntentFilter();
-		intentFilter.addAction(BleMngService.UWS_GATT_CONNECTED);
-		intentFilter.addAction(BleMngService.UWS_GATT_DISCONNECTED);
-		intentFilter.addAction(BleMngService.UWS_GATT_SERVICES_DISCOVERED);
-		intentFilter.addAction(BleMngService.UWS_DATA_AVAILABLE);
-		return intentFilter;
-	}
-
-	@Override
-	protected void onPause() {
-		super.onPause();
-		/* 設定したブロードキャストintentを解除 */
-		unregisterReceiver(mIntentListner);
+		/* BLE管理サービス起動 */
+		TLog.d("BLE管理サービス起動");
+		Intent intent = new Intent(this, BleMngService.class);
+		intent.putExtra(EXTRAS_DEVICE_ADDRESS, mDeviceAddress);
+		bindService(intent, mCon, BIND_AUTO_CREATE);
 	}
 
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
+		unregisterReceiver(mIntentListner);	/* 設定したブロードキャストintentを解除 */
 		unbindService(mCon);
 		mBLeMngServ = null;
 	}
@@ -127,6 +108,20 @@ public class DeviceConnectActivity extends AppCompatActivity {
 				return;
 
 			switch (action) {
+				/* Ble管理サービス正常起動 */
+				case BleMngService.UWS_SERVICE_WAKEUP_OK:
+					TLog.d("Service wake up OK.");
+					break;
+
+				/* Ble管理サービス起動失敗 */
+				case BleMngService.UWS_SERVICE_WAKEUP_NG:
+					int errReason = intent.getIntExtra(BleMngService.UWS_SERVICE_WAKEUP_NG_REASON, BleMngService.UWS_NG_REASON_INITBLE);
+					if(errReason == BleMngService.UWS_NG_REASON_INITBLE)
+						MsgPopUp.create(DeviceConnectActivity.this).setErrMsg("Service起動中のBT初期化に失敗!!終了します。").Show(DeviceConnectActivity.this);
+					else if(errReason == BleMngService.UWS_NG_REASON_CONNECTBLE)
+						Snackbar.make(findViewById(R.id.root_view_device), "デバイス接続失敗!!\n前画面で、別のデバイスを選択して下さい。", Snackbar.LENGTH_LONG).show();
+					break;
+
 				/* Gattサーバ接続完了 */
 				case BleMngService.UWS_GATT_CONNECTED:
 					runOnUiThread(() -> {

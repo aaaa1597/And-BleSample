@@ -13,13 +13,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
+
 import java.util.List;
 
 import static com.test.blesample.central.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
+import static com.test.blesample.central.DeviceConnectActivity.EXTRAS_DEVICE_ADDRESS;
 
-/**
- * Created by itanbarpeled on 28/01/2018.
- */
 
 public class BleMngService extends Service {
 	/* サブクラス : BleMngService.LocalBinder */
@@ -29,6 +28,11 @@ public class BleMngService extends Service {
 		}
 	}
 	/* メッセージID */
+	public final static String UWS_SERVICE_WAKEUP_OK		= "com.tks.uws.SERVICE_WAKEUP_OK";
+	public final static String UWS_SERVICE_WAKEUP_NG		= "com.tks.uws.SERVICE_WAKEUP_NG";
+	public final static String UWS_SERVICE_WAKEUP_NG_REASON	= "com.tks.uws.SERVICE_WAKEUP_NG_REASON";
+	public final static int    UWS_NG_REASON_INITBLE		= -1;
+	public final static int    UWS_NG_REASON_CONNECTBLE		= -2;
 	public final static String UWS_GATT_CONNECTED			= "com.tks.uws.GATT_CONNECTED";
 	public final static String UWS_GATT_DISCONNECTED		= "com.tks.uws.GATT_DISCONNECTED";
 	public final static String UWS_GATT_SERVICES_DISCOVERED	= "com.tks.uws.GATT_SERVICES_DISCOVERED";
@@ -121,6 +125,26 @@ public class BleMngService extends Service {
 	@Override
 	public IBinder onBind(Intent intent) {
 		TLog.d("onBind() s-e");
+		mBleDeviceAddr = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
+		boolean ret = initBle();
+		if( !ret) {
+			TLog.d("BLE初期化失敗!!");
+			Intent resintent = new Intent(UWS_SERVICE_WAKEUP_NG);
+			resintent.putExtra(UWS_SERVICE_WAKEUP_NG_REASON, UWS_NG_REASON_INITBLE);
+			sendBroadcast(resintent);
+			return mBinder;
+		}
+		boolean ret2 = connectBle(mBleDeviceAddr);
+		if( !ret2) {
+			TLog.d("BLE接続失敗!!");
+			Intent resintent = new Intent(UWS_SERVICE_WAKEUP_NG);
+			resintent.putExtra(UWS_SERVICE_WAKEUP_NG_REASON, UWS_NG_REASON_CONNECTBLE);
+			sendBroadcast(resintent);
+			return mBinder;
+		}
+
+		Intent resintent = new Intent(UWS_SERVICE_WAKEUP_OK);
+		sendBroadcast(resintent);
 		return mBinder;
 	}
 
@@ -142,7 +166,7 @@ public class BleMngService extends Service {
 	}
 
 	/* Bluetooth接続 */
-	public boolean connect(final String address) {
+	public boolean connectBle(final String address) {
 		if (mBtAdapter == null || address == null) {
 			TLog.d("initBle()を呼び出す前に、この関数を呼び出した。");
 			throw new IllegalStateException("initBle()を呼び出す前に、この関数を呼び出した。");

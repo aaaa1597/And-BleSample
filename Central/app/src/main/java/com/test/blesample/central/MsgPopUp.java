@@ -10,15 +10,15 @@ import android.view.WindowManager;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 
-public class ErrPopUp extends PopupWindow {
+public class MsgPopUp extends PopupWindow {
 	/* コンストラクタ */
-	private ErrPopUp(Activity activity) {
+	private MsgPopUp(Activity activity) {
 		super(activity);
 	}
 
 	/* windows生成 */
-	public static ErrPopUp create(Activity activity) {
-		ErrPopUp retwindow = new ErrPopUp(activity);
+	public static MsgPopUp create(Activity activity) {
+		MsgPopUp retwindow = new MsgPopUp(activity);
 		View popupView = activity.getLayoutInflater().inflate(R.layout.popup_layout, null);
 		popupView.findViewById(R.id.btnClose).setOnClickListener(v -> {
 			android.os.Process.killProcess(android.os.Process.myPid());
@@ -39,7 +39,7 @@ public class ErrPopUp extends PopupWindow {
 	}
 
 	/* 文字列設定 */
-	public ErrPopUp setErrMsg(String errmsg) {
+	public MsgPopUp setErrMsg(String errmsg) {
 		((TextView)this.getContentView().findViewById(R.id.txtErrMsg)).setText(errmsg);
 		return this;
 	}

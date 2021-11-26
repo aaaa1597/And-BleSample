@@ -63,7 +63,7 @@ public class MainActivity extends BluetoothActivity {
 
 		/* Bluetoothのサポート状況チェック 未サポート端末なら起動しない */
 		if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-			ErrPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
+			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
 		}
 
 		/* 権限が許可されていない場合はリクエスト. */
@@ -75,7 +75,7 @@ public class MainActivity extends BluetoothActivity {
 		mBluetoothAdapter = bluetoothManager.getAdapter();
 		/* Bluetooth未サポート判定 未サポートならエラーpopupで終了 */
 		if (mBluetoothAdapter == null) {
-			ErrPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
+			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
 		}
 		/* Bluetooth ON/OFF判定 -> OFFならONにするようにリクエスト */
 		else if( !mBluetoothAdapter.isEnabled()) {
@@ -96,7 +96,7 @@ public class MainActivity extends BluetoothActivity {
 			startBLEScan();
 		}
 		else {
-			ErrPopUp.create(MainActivity.this).setErrMsg("Bluetooth機能をONにする必要があります。").Show(MainActivity.this);
+			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetooth機能をONにする必要があります。").Show(MainActivity.this);
 		}
 	}
 
@@ -122,7 +122,7 @@ public class MainActivity extends BluetoothActivity {
 		/* Bluetooth使用の権限がないのでreturn */
 		if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 			TLog.d( "startPrepare() e Bluetooth使用の権限が拒否られた。");
-			ErrPopUp.create(MainActivity.this).setErrMsg("このアプリに権限を与えて下さい。").Show(MainActivity.this);
+			MsgPopUp.create(MainActivity.this).setErrMsg("このアプリに権限を与えて下さい。").Show(MainActivity.this);
 			return;
 		}
 		TLog.d( "Bluetooth使用権限OK.");
