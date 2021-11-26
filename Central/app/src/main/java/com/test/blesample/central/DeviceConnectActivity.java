@@ -40,13 +40,15 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		public void onServiceConnected(ComponentName componentName, IBinder service) {
 			TLog.d("BLE管理サービス接続-確立");
 			mBLeMngServ = ((BleMngService.LocalBinder)service).getService();
-			if (!mBLeMngServ.initBle()) {
+			/* Bluetooth初期化 */
+			boolean ret = mBLeMngServ.initBle();
+			if( !ret) {
 				Log.e("aaaaa", "initBLE Failed!!");
 				ErrPopUp.create(DeviceConnectActivity.this).setErrMsg("Service起動に失敗!!終了します。").Show(DeviceConnectActivity.this);
 			}
-
-			boolean ret = mBLeMngServ.connect(mDeviceAddress);
-			if( !ret)
+			/* Bluetooth接続 */
+			boolean ret2 = mBLeMngServ.connect(mDeviceAddress);
+			if( !ret2)
 				Snackbar.make(findViewById(R.id.root_view_device), "デバイス接続失敗!!\n前画面で、別のデバイスを選択して下さい。", Snackbar.LENGTH_LONG).show();
 		}
 		@Override

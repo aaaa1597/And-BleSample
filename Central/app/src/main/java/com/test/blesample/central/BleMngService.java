@@ -11,12 +11,8 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
-import android.icu.text.MessageFormat;
 import android.os.Binder;
-import android.os.Build;
 import android.os.IBinder;
-import android.support.annotation.RequiresApi;
-import android.util.Log;
 import java.util.List;
 
 import static com.test.blesample.central.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
@@ -32,10 +28,6 @@ public class BleMngService extends Service {
 			return BleMngService.this;
 		}
 	}
-	/* 接続状態 */
-	private static final int STATE_DISCONNECTED	= 0;
-	private static final int STATE_CONNECTING	= 1;
-	private static final int STATE_CONNECTED	= 2;
 	/* メッセージID */
 	public final static String UWS_GATT_CONNECTED			= "com.tks.uws.GATT_CONNECTED";
 	public final static String UWS_GATT_DISCONNECTED		= "com.tks.uws.GATT_DISCONNECTED";
@@ -62,7 +54,7 @@ public class BleMngService extends Service {
 				sendBroadcast(new Intent(UWS_GATT_CONNECTED));
 				TLog.d("GATTサーバ接続OK.");
 				mBleGatt.discoverServices();
-				TLog.i("Discovery開始");
+				TLog.d("Discovery開始");
 			}
 			/* Gattサーバ断 */
 			else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
@@ -87,20 +79,47 @@ public class BleMngService extends Service {
 		public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
 			TLog.d("読込み要求の応答 status=", status);
 			if (status == BluetoothGatt.GATT_SUCCESS) {
-				broadcastUpdate(UWS_DATA_AVAILABLE, characteristic);
+				rcvData(UWS_DATA_AVAILABLE, characteristic);
 			}
 			else {
-				Log.w("aaaaa", "onCharacteristicRead GATT_FAILURE");
+				TLog.d("onCharacteristicRead GATT_FAILURE");
 			}
 			TLog.d("BluetoothGattCallback::onCharacteristicRead() e");
 		}
 
 		@Override
 		public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-			TLog.d("onCharacteristicChanged...こいつは何だ?");
-			broadcastUpdate(UWS_DATA_AVAILABLE, characteristic);
+			TLog.d("ペリフェラルからの受信");
+			rcvData(UWS_DATA_AVAILABLE, characteristic);
 		}
 	};
+
+	/* データ受信(peripheral -> Service -> Activity) */
+	private void rcvData(final String action, final BluetoothGattCharacteristic characteristic) {
+		Intent intent = new Intent(action);
+		if (BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID.equals(characteristic.getUuid())) {
+			/* 受信データ取出し */
+			int flag = characteristic.getProperties();
+			int format = ((flag & 0x01) != 0) ? BluetoothGattCharacteristic.FORMAT_UINT16 : BluetoothGattCharacteristic.FORMAT_UINT8;
+			int msg = characteristic.getIntValue(format, 0);
+			TLog.d("message: {0}", msg);
+			/* 受信データ取出し */
+			intent.putExtra(UWS_DATA, msg);
+		}
+		/* ↓↓↓この処理はサンプルコード。実際には動かない。 */
+		else {
+			final byte[] data = characteristic.getValue();
+			if (data != null && data.length > 0) {
+				final StringBuilder stringBuilder = new StringBuilder(data.length);
+				for (byte byteChar : data)
+					stringBuilder.append(String.format("%02X ", byteChar));
+				intent.putExtra(UWS_DATA, -1);
+			}
+		}
+		/* ↑↑↑この処理はサンプルコード。実際には動かない。 */
+		/* 受信データ中継 */
+		sendBroadcast(intent);
+	}
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -114,6 +133,7 @@ public class BleMngService extends Service {
 		return super.onUnbind(intent);
 	}
 
+	/* Bluetooth初期化 */
 	public boolean initBle() {
 		mBtManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
 		if(mBtManager == null) return false;
@@ -124,6 +144,7 @@ public class BleMngService extends Service {
 		return true;
 	}
 
+	/* Bluetooth接続 */
 	public boolean connect(final String address) {
 		if (mBtAdapter == null || address == null) {
 			TLog.d("initBle()を呼び出す前に、この関数を呼び出した。");
@@ -151,8 +172,9 @@ public class BleMngService extends Service {
 			return false;
 		}
 
-		// We want to directly connect to the device, so we are setting the autoConnect parameter to false.
-		mBleGatt = device.connectGatt(this, false, mGattCallback);
+		/* デバイスに直接接続したい時に、autoConnectをfalseにする。 */
+		/* デバイスが使用可能になったら自動的にすぐに接続する様にする時に、autoConnectをtrueにする。 */
+		mBleGatt = device.connectGatt(getApplicationContext(), false, mGattCallback);
 		mBleDeviceAddr = address;
 //		mConnectionState = STATE_CONNECTING;
 		TLog.d("GATTサーバ接続開始.address={0}", address);
@@ -160,78 +182,10 @@ public class BleMngService extends Service {
 		return true;
 	}
 
-	private void broadcastUpdate(final String action, final BluetoothGattCharacteristic characteristic) {
-		TLog.d("broadcastUpdate() 2 s");
-
-		Intent intent = new Intent(action);
-
-		/*
-			This is special handling for the Heart Rate Measurement profile.  Data parsing is
-			carried out as per profile specifications:
-			http://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml
-		 */
-		if (BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID.equals(characteristic.getUuid())) {
-
-			int flag = characteristic.getProperties();
-			int format = -1;
-
-			if ((flag & 0x01) != 0) {
-				format = BluetoothGattCharacteristic.FORMAT_UINT16;
-				Log.d("aaaaa", "data format UINT16.");
-			} else {
-				format = BluetoothGattCharacteristic.FORMAT_UINT8;
-				Log.d("aaaaa", "data format UINT16.");
-			}
-
-			int msg = characteristic.getIntValue(format, 0);
-			Log.d("aaaaa", String.format("message: %d", msg));
-			intent.putExtra(UWS_DATA, msg);
-
-		}
-		else {
-
-			/*
-			for all other profiles, writes the data formatted in HEX.
-			this code isn't relevant for this project.
-			*/
-			final byte[] data = characteristic.getValue();
-
-			if (data != null && data.length > 0) {
-				final StringBuilder stringBuilder = new StringBuilder(data.length);
-				for (byte byteChar : data) {
-					stringBuilder.append(String.format("%02X ", byteChar));
-				}
-
-				Log.w("aaaaa", "broadcastUpdate. general profile");
-				intent.putExtra(UWS_DATA, -1);
-				//intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
-			}
-		}
-
-
-		sendBroadcast(intent);
-		TLog.d("broadcastUpdate() 2 e");
-	}
-
-
-
-	// TODO bluetooth - call this method when needed
-	/**
-	 * Disconnects an existing connection or cancel a pending connection. The disconnection result
-	 * is reported asynchronously through the
-	 * {@code BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
-	 * callback.
-	 */
 	public void disconnect() {
-		TLog.d("disconnect() s");
-
-		if (mBtAdapter == null || mBleGatt == null) {
-			Log.w("aaaaa", "BluetoothAdapter not initialized");
+		if (mBtAdapter == null || mBleGatt == null)
 			return;
-		}
-
 		mBleGatt.disconnect();
-		TLog.d("disconnect() e");
 	}
 
 	public void close() {
@@ -241,57 +195,28 @@ public class BleMngService extends Service {
 		mBleGatt = null;
 	}
 
-
-
-	/**
-	 * Request a read on a given {@code BluetoothGattCharacteristic}. The read result is reported
-	 * asynchronously through the {@code BluetoothGattCallback#onCharacteristicRead(android.bluetooth.BluetoothGatt, android.bluetooth.BluetoothGattCharacteristic, int)}
-	 * callback.
-	 *
-	 * @param characteristic The characteristic to read from.
-	 */
 	public void readCharacteristic(BluetoothGattCharacteristic characteristic) {
-		TLog.d("readCharacteristic() s");
-
 		if (mBtAdapter == null || mBleGatt == null) {
-			Log.w("aaaaa", "BluetoothAdapter not initialized");
-			TLog.d("readCharacteristic() e false");
-			return;
+			TLog.d("Bluetooth not initialized");
+			throw new IllegalStateException("Error!! Bluetooth not initialized!!");
 		}
 
 		mBleGatt.readCharacteristic(characteristic);
-		TLog.d("readCharacteristic() e");
 	}
 
-	/**
-	 * Enables or disables notification on a give characteristic.
-	 *
-	 * @param characteristic Characteristic to act on.
-	 * @param enabled If true, enable notification.  False otherwise.
-	 */
+	/* 指定CharacteristicのCallback登録 */
 	public void setCharacteristicNotification(BluetoothGattCharacteristic characteristic, boolean enabled) {
 		TLog.d("setCharacteristicNotification() s");
-
 		if (mBtAdapter == null || mBleGatt == null) {
-			Log.w("aaaaa", "BluetoothAdapter not initialized");
 			TLog.d("setCharacteristicNotification() e false");
 			return;
 		}
 
 		mBleGatt.setCharacteristicNotification(characteristic, enabled);
-
-		// This is specific to Heart Rate Measurement.
-		/*
-		if (HEART_RATE_MEASUREMENT_UUID.toString().equals(characteristic.getUuid().toString())) {
-			BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIGURATION_UUID);
-			descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-			mBluetoothGatt.writeDescriptor(descriptor);
-		}
-		*/
-
 		TLog.d("setCharacteristicNotification() e");
 	}
 
+	/* 対象デバイスの保有するサービスを取得 */
 	public List<BluetoothGattService> getSupportedGattServices() {
 		if (mBleGatt == null)
 			return null;
