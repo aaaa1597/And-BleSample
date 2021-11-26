@@ -19,22 +19,29 @@ import java.util.HashSet;
 
 import static itan.com.bluetoothle.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
 import static itan.com.bluetoothle.Constants.HEART_RATE_SERVICE_UUID;
-import static itan.com.bluetoothle.Constants.SERVER_MSG_FIRST_STATE;
-import static itan.com.bluetoothle.Constants.SERVER_MSG_SECOND_STATE;
-
+import static itan.com.bluetoothle.Constants.BLEMSG_1;
+import static itan.com.bluetoothle.Constants.BLEMSG_2;
 
 /**
- This activity represents the Peripheral/Server role.
- Bluetooth communication flow:
-	1. advertise [peripheral]
-	2. scan [central]
-	3. connect [central]
-	4. notify [peripheral]
-	5. receive [central]
+ BLEシーケンス
+ peripheral		central
+ 	|				|
+ 	|	advertise	|
+ 	|-------------->|
+ 	|-------------->|
+ 	|		・		|
+ 	|	scan		|
+ 	|<--------------|
+ 	|	connect		|
+ 	|<--------------|
+ 	|	notify		|
+ 	|-------------->|
+ 	|	receive		|
+ 	|<--------------|
+ 	|				|
  */
 public class MainActivity extends BluetoothActivity {
 
-	private BluetoothGattService mSampleService;
 	private BluetoothGattCharacteristic mSampleCharacteristic;
 
 	private BluetoothGattServer mGattServer;
@@ -108,7 +115,7 @@ public class MainActivity extends BluetoothActivity {
 	private void setBluetoothService() {
 
 		// create the Service
-		mSampleService = new BluetoothGattService(HEART_RATE_SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
+		BluetoothGattService sampleService = new BluetoothGattService(HEART_RATE_SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
 		/*
 		create the Characteristic.
@@ -119,11 +126,11 @@ public class MainActivity extends BluetoothActivity {
 		setCharacteristic(); // set initial state
 
 		// add the Characteristic to the Service
-		mSampleService.addCharacteristic(mSampleCharacteristic);
+		sampleService.addCharacteristic(mSampleCharacteristic);
 
 		// add the Service to the Server/Peripheral
 		if (mGattServer != null) {
-			mGattServer.addService(mSampleService);
+			mGattServer.addService(sampleService);
 		}
 	}
 
@@ -145,7 +152,7 @@ public class MainActivity extends BluetoothActivity {
 		/*
 		done each time the user changes a value of a Characteristic
 		 */
-		int value = checkedId == R.id.color_option_1 ? SERVER_MSG_FIRST_STATE : SERVER_MSG_SECOND_STATE;
+		int value = checkedId == R.id.color_option_1 ? BLEMSG_1 : BLEMSG_2;
 		mSampleCharacteristic.setValue(getValue(value));
 	}
 
@@ -181,6 +188,12 @@ public class MainActivity extends BluetoothActivity {
 
 	private final BluetoothGattServerCallback mGattServerCallback = new BluetoothGattServerCallback() {
 
+		/**
+		 *
+		 * @param device
+		 * @param status	int: Status of the connect or disconnect operation. BluetoothGatt.GATT_SUCCESS if the operation succeeds.
+		 * @param newState	BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile#STATE_CONNECTED
+		 */
 		@Override
 		public void onConnectionStateChange(BluetoothDevice device, final int status, int newState) {
 			super.onConnectionStateChange(device, status, newState);
