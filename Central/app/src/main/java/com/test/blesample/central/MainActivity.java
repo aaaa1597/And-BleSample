@@ -15,13 +15,14 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.support.design.widget.Snackbar;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.widget.Button;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends BluetoothActivity {
+public class MainActivity extends AppCompatActivity {
 	private BluetoothAdapter						mBluetoothAdapter = null;
 	private DeviceListAdapter						mDeviceListAdapter;
 	private Handler									mHandler;
@@ -40,7 +41,7 @@ public class MainActivity extends BluetoothActivity {
 		RecyclerView deviceListRvw = findViewById(R.id.rvw_devices);
 		deviceListRvw.setHasFixedSize(true);
 		deviceListRvw.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
-		mDeviceListAdapter = new DeviceListAdapter(new DeviceListAdapter.DevicesAdapterListener() {
+		mDeviceListAdapter = new DeviceListAdapter(new DeviceListAdapter.DeviceListAdapterListener() {
 			@Override
 			public void onDeviceItemClick(String deviceName, String deviceAddress) {
 				/* 接続画面に遷移 */

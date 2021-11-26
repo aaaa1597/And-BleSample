@@ -15,156 +15,104 @@ import java.util.List;
  * Created by itanbarpeled on 28/01/2018.
  */
 
-public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.ViewHolder>  {
+public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.ViewHolder> {
+	/* インターフェース : DeviceListAdapterListener */
+	public interface DeviceListAdapterListener {
+		void onDeviceItemClick(String deviceName, String deviceAddress);
+	}
 
+	static class ViewHolder extends RecyclerView.ViewHolder {
+		TextView mTxtDeviceName;
+		TextView mTxtDeviceNameAddress;
+		ViewHolder(View view) {
+			super(view);
+			mTxtDeviceName			= view.findViewById(R.id.device_name);
+			mTxtDeviceNameAddress	= view.findViewById(R.id.device_address);
+		}
+	}
 
-    public interface DevicesAdapterListener {
-        void onDeviceItemClick(String deviceName, String deviceAddress);
-    }
+	/* メンバ変数 */
+	private ArrayList<ScanResult>		mDeviceList = new ArrayList<ScanResult>();
+	private DeviceListAdapterListener	mListener;
 
-    /*
-    class Temp {
-        String name;
-        String address;
+	public DeviceListAdapter(DeviceListAdapterListener listener) {
+		mListener = listener;
+	}
 
-        public Temp(String name, String address) {
-            this.name = name;
-            this.address = address;
-        }
-    }
-    */
+	public DeviceListAdapter.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+		View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.lay_listitem_devices, parent, false);
+		return new ViewHolder(view);
+	}
 
-    static class ViewHolder extends RecyclerView.ViewHolder {
+	@Override
+	public void onBindViewHolder(ViewHolder holder, int position) {
+		ScanResult scanResult = mDeviceList.get(position);
+		final String deviceName		= scanResult.getDevice().getName();
+		final String deviceAddress	= scanResult.getDevice().getAddress();
 
-        TextView mDeviceNameView;
-        TextView mDeviceNameAddressView;
+        holder.mTxtDeviceName.setText(TextUtils.isEmpty(deviceName) ? "" : deviceName);
+        holder.mTxtDeviceNameAddress.setText(TextUtils.isEmpty(deviceAddress) ? "" : deviceAddress);
+		holder.itemView.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+                if (TextUtils.isEmpty(deviceName) || TextUtils.isEmpty(deviceAddress))
+                    return;
 
-        ViewHolder(View view) {
+                if (mListener != null)
+                    mListener.onDeviceItemClick(deviceName, deviceAddress);
+			}
+		});
+	}
 
-            super(view);
-            mDeviceNameView = (TextView) view.findViewById(R.id.device_name);
-            mDeviceNameAddressView = (TextView) view.findViewById(R.id.device_address);
-        }
+	@Override
+	public int getItemCount() {
+		return mDeviceList.size();
+	}
 
-    }
+	public void addDevice(ScanResult scanResult) {
+		addDevice(scanResult, true);
+	}
 
-    /* メンバ変数 */
-    private ArrayList<ScanResult>		mDeviceList = new ArrayList<ScanResult>();
-    private DevicesAdapterListener mListener;
+	public void addDevice(ScanResult scanResult, boolean notify) {
+		if (scanResult == null)
+			return;
 
+		int existingPosition = getPosition(scanResult.getDevice().getAddress());
 
-    public DeviceListAdapter(DevicesAdapterListener listener) {
-        mListener = listener;
+		if (existingPosition >= 0) {
+			/* 追加済 更新する */
+			mDeviceList.set(existingPosition, scanResult);
+		}
+		else {
+            /* 新規追加 */
+			mDeviceList.add(scanResult);
+		}
 
-        /*
-        Temp device = new Temp("Pixel", "AA:12:AA:12:AA:12");
-        mArrayList.add(device);
-        device = new Temp("Galaxy S8", "BB:23:BB:23:BB:23");
-        mArrayList.add(device);
-        notifyDataSetChanged();
-        */
-    }
+		if (notify) {
+			notifyDataSetChanged();
+		}
 
-    public DeviceListAdapter.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.list_item_device_list, parent, false);
-        return new ViewHolder(view);
-    }
+	}
 
-    @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
+	public void addDevice(List<ScanResult> scanResults) {
+		if (scanResults != null) {
+			for (ScanResult scanResult : scanResults) {
+				addDevice(scanResult, false);
+			}
+			notifyDataSetChanged();
+		}
+	}
 
-        ScanResult scanResult = mDeviceList.get(position);
-        final String deviceName = scanResult.getDevice().getName();
-        final String deviceAddress = scanResult.getDevice().getAddress();
-
-        /*
-        Temp scanResult = mArrayList.get(position);
-        final String deviceName = scanResult.name;
-        final String deviceAddress = scanResult.address;
-        */
-
-        if (TextUtils.isEmpty(deviceName)) {
-            holder.mDeviceNameView.setText("");
-        } else {
-            holder.mDeviceNameView.setText(deviceName);
-        }
-
-        if (TextUtils.isEmpty(deviceAddress)) {
-            holder.mDeviceNameAddressView.setText("");
-        } else {
-            holder.mDeviceNameAddressView.setText(deviceAddress);
-        }
-
-        holder.itemView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (!TextUtils.isEmpty(deviceName) && !TextUtils.isEmpty(deviceAddress)) {
-                    if (mListener != null) {
-                        mListener.onDeviceItemClick(deviceName, deviceAddress);
-                    }
-                }
-            }
-        });
-    }
-
-    @Override
-    public int getItemCount() {
-        return mDeviceList.size();
-    }
-
-    public void addDevice(ScanResult scanResult) {
-        addDevice(scanResult, true);
-    }
-
-    /**
-     * Add a ScanResult item to the adapter if a result from that device isn't already present.
-     * Otherwise updates the existing position with the new ScanResult.
-     */
-    public void addDevice(ScanResult scanResult, boolean notify) {
-
-        if (scanResult == null) {
-            return;
-        }
-
-        int existingPosition = getPosition(scanResult.getDevice().getAddress());
-
-        if (existingPosition >= 0) {
-            // Device is already in list, update its record.
-            mDeviceList.set(existingPosition, scanResult);
-        } else {
-            // Add new Device's ScanResult to list.
-            mDeviceList.add(scanResult);
-        }
-
-        if (notify) {
-            notifyDataSetChanged();
-        }
-
-    }
-
-    public void addDevice(List<ScanResult> scanResults) {
-        if (scanResults != null) {
-            for (ScanResult scanResult : scanResults) {
-                addDevice(scanResult, false);
-            }
-            notifyDataSetChanged();
-        }
-    }
-
-
-    /**
-     * Search the adapter for an existing device address and return it, otherwise return -1.
-     */
-    private int getPosition(String address) {
-        int position = -1;
-        for (int i = 0; i < mDeviceList.size(); i++) {
-            if (mDeviceList.get(i).getDevice().getAddress().equals(address)) {
-                position = i;
-                break;
-            }
-        }
-        return position;
-    }
+	private int getPosition(String address) {
+		int position = -1;
+		for (int i = 0; i < mDeviceList.size(); i++) {
+			if (mDeviceList.get(i).getDevice().getAddress().equals(address)) {
+				position = i;
+				break;
+			}
+		}
+		return position;
+	}
 
 	public void clearDevice() {
 		mDeviceList.clear();
