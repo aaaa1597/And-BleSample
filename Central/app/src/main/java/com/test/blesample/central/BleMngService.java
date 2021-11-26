@@ -81,7 +81,7 @@ public class BleMngService extends Service {
 		public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
 			TLog.d("読込み要求の応答 status=", status);
 			if (status == BluetoothGatt.GATT_SUCCESS) {
-				rcvData(UWS_DATA_AVAILABLE, characteristic);
+				parseRcvData(UWS_DATA_AVAILABLE, characteristic);
 			}
 			else {
 				TLog.d("onCharacteristicRead GATT_FAILURE");
@@ -92,12 +92,12 @@ public class BleMngService extends Service {
 		@Override
 		public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
 			TLog.d("ペリフェラルからの受信");
-			rcvData(UWS_DATA_AVAILABLE, characteristic);
+			parseRcvData(UWS_DATA_AVAILABLE, characteristic);
 		}
 	};
 
 	/* データ受信(peripheral -> Service -> Activity) */
-	private void rcvData(final String action, final BluetoothGattCharacteristic characteristic) {
+	private void parseRcvData(final String action, final BluetoothGattCharacteristic characteristic) {
 		Intent intent = new Intent(action);
 		if (BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID.equals(characteristic.getUuid())) {
 			/* 受信データ取出し */
