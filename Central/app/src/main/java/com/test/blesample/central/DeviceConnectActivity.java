@@ -118,6 +118,8 @@ public class DeviceConnectActivity extends AppCompatActivity {
 					int errReason = intent.getIntExtra(BleMngService.UWS_SERVICE_WAKEUP_NG_REASON, BleMngService.UWS_NG_REASON_INITBLE);
 					if(errReason == BleMngService.UWS_NG_REASON_INITBLE)
 						MsgPopUp.create(DeviceConnectActivity.this).setErrMsg("Service起動中のBT初期化に失敗!!終了します。").Show(DeviceConnectActivity.this);
+					else if(errReason == BleMngService.UWS_NG_REASON_DEVICENOTFOUND)
+						Snackbar.make(findViewById(R.id.root_view_device), "デバイスアドレスなし!!\n前画面で、別のデバイスを選択して下さい。", Snackbar.LENGTH_LONG).show();
 					else if(errReason == BleMngService.UWS_NG_REASON_CONNECTBLE)
 						Snackbar.make(findViewById(R.id.root_view_device), "デバイス接続失敗!!\n前画面で、別のデバイスを選択して下さい。", Snackbar.LENGTH_LONG).show();
 					break;

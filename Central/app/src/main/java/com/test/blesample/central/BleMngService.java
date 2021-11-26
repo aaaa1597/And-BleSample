@@ -31,19 +31,20 @@ public class BleMngService extends Service {
 	public final static String UWS_SERVICE_WAKEUP_OK		= "com.tks.uws.SERVICE_WAKEUP_OK";
 	public final static String UWS_SERVICE_WAKEUP_NG		= "com.tks.uws.SERVICE_WAKEUP_NG";
 	public final static String UWS_SERVICE_WAKEUP_NG_REASON	= "com.tks.uws.SERVICE_WAKEUP_NG_REASON";
+	public final static int    UWS_NG_REASON_SUCCESS		= 0;
 	public final static int    UWS_NG_REASON_INITBLE		= -1;
 	public final static int    UWS_NG_REASON_CONNECTBLE		= -2;
+	public final static int    UWS_NG_REASON_DEVICENOTFOUND	= -3;
 	public final static String UWS_GATT_CONNECTED			= "com.tks.uws.GATT_CONNECTED";
 	public final static String UWS_GATT_DISCONNECTED		= "com.tks.uws.GATT_DISCONNECTED";
 	public final static String UWS_GATT_SERVICES_DISCOVERED	= "com.tks.uws.GATT_SERVICES_DISCOVERED";
 	public final static String UWS_DATA_AVAILABLE			= "com.tks.uws.DATA_AVAILABLE";
 	public final static String UWS_DATA						= "com.tks.uws.DATA";
 	/* Serviceのお約束 */
-	private final IBinder		mBinder = new LocalBinder();
-	private BluetoothAdapter	mBtAdapter;
-	private BluetoothGatt		mBleGatt;
-	private String				mBleDeviceAddr;
-	private final BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
+	private final IBinder				mBinder = new LocalBinder();
+	private BluetoothGatt				mBleGatt;
+	private String						mBleDeviceAddr;
+	private final BluetoothGattCallback	mGattCallback = new BluetoothGattCallback() {
 		@Override
 		public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
 			TLog.d("BluetoothGattCallback::onConnectionStateChange() {0} -> {1}", status, newState);
@@ -125,72 +126,69 @@ public class BleMngService extends Service {
 	@Override
 	public IBinder onBind(Intent intent) {
 		TLog.d("onBind() s-e");
+		/* BLEアドレス取得 */
 		mBleDeviceAddr = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
-		boolean ret = initBle();
-		if( !ret) {
-			TLog.d("BLE初期化失敗!!");
+		if(mBleDeviceAddr == null) {
+			TLog.d("デバイス名未設定!! devicename=null");
 			Intent resintent = new Intent(UWS_SERVICE_WAKEUP_NG);
-			resintent.putExtra(UWS_SERVICE_WAKEUP_NG_REASON, UWS_NG_REASON_INITBLE);
+			resintent.putExtra(UWS_SERVICE_WAKEUP_NG_REASON, UWS_NG_REASON_DEVICENOTFOUND);
 			sendBroadcast(resintent);
-			return mBinder;
-		}
-		boolean ret2 = connectBle(mBleDeviceAddr);
-		if( !ret2) {
-			TLog.d("BLE接続失敗!!");
-			Intent resintent = new Intent(UWS_SERVICE_WAKEUP_NG);
-			resintent.putExtra(UWS_SERVICE_WAKEUP_NG_REASON, UWS_NG_REASON_CONNECTBLE);
-			sendBroadcast(resintent);
-			return mBinder;
 		}
 
-		Intent resintent = new Intent(UWS_SERVICE_WAKEUP_OK);
-		sendBroadcast(resintent);
+		/* BLE初期化 */
+		int ret = connectBleDevice(mBleDeviceAddr);
+		if( ret < 0) {
+			TLog.d("BLE初期化/接続失敗!!");
+			Intent resintent = new Intent(UWS_SERVICE_WAKEUP_NG);
+			resintent.putExtra(UWS_SERVICE_WAKEUP_NG_REASON, ret);
+			sendBroadcast(resintent);
+		}
+		else {
+			TLog.d("BLE初期化/接続成功.");
+			Intent resintent = new Intent(UWS_SERVICE_WAKEUP_OK);
+			sendBroadcast(resintent);
+		}
 		return mBinder;
 	}
 
 	@Override
 	public boolean onUnbind(Intent intent) {
-		closeBle();
+		disconnectBleDevice();
 		return super.onUnbind(intent);
 	}
 
-	/* Bluetooth初期化 */
-	public boolean initBle() {
-		BluetoothManager btManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-		if(btManager == null) return false;
-
-		mBtAdapter = btManager.getAdapter();
-		if(mBtAdapter == null) return false;
-
-		return true;
-	}
-
 	/* Bluetooth接続 */
-	public boolean connectBle(final String address) {
-		if (mBtAdapter == null || address == null) {
-			TLog.d("initBle()を呼び出す前に、この関数を呼び出した。");
-			throw new IllegalStateException("initBle()を呼び出す前に、この関数を呼び出した。");
+	private int connectBleDevice(final String address) {
+		if (address == null) {
+			TLog.d("デバイスアドレスなし");
+			return UWS_NG_REASON_DEVICENOTFOUND;
 		}
 
+		BluetoothManager btManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
+		if(btManager == null) return UWS_NG_REASON_INITBLE;
+
+		BluetoothAdapter btAdapter = btManager.getAdapter();
+		if(btAdapter == null) return UWS_NG_REASON_INITBLE;
+
 		/* 再接続処理 */
-		if (mBleDeviceAddr != null && address.equals(mBleDeviceAddr) && mBleGatt != null) {
-			TLog.d("接続済のデバイスに再接続します。");
+		if (address.equals(mBleDeviceAddr) && mBleGatt != null) {
+			TLog.d("");
 			if (mBleGatt.connect()) {
 //				mConnectionState = STATE_CONNECTING;
-				TLog.d("接続しました。");
-				return true;
+				TLog.d("接続済のデバイスに再接続。成功しました。");
+				return UWS_NG_REASON_SUCCESS;
 			}
 			else {
-				TLog.d("接続失敗。");
-				return false;
+				TLog.d("接続済のデバイスに再接続。失敗しました。");
+				return UWS_NG_REASON_DEVICENOTFOUND;
 			}
 		}
 
 		/* 初回接続 */
-		BluetoothDevice device = mBtAdapter.getRemoteDevice(address);
+		BluetoothDevice device = btAdapter.getRemoteDevice(address);
 		if (device == null) {
 			TLog.d("デバイス({0})が見つかりません。接続できませんでした。", address);
-			return false;
+			return UWS_NG_REASON_DEVICENOTFOUND;
 		}
 
 		/* デバイスに直接接続したい時に、autoConnectをfalseにする。 */
@@ -200,24 +198,19 @@ public class BleMngService extends Service {
 //		mConnectionState = STATE_CONNECTING;
 		TLog.d("GATTサーバ接続開始.address={0}", address);
 
-		return true;
+		return UWS_NG_REASON_SUCCESS;
 	}
 
-	public void disconnectBle() {
-		if (mBtAdapter == null || mBleGatt == null)
-			return;
-		mBleGatt.disconnect();
-	}
-
-	public void closeBle() {
-		if (mBleGatt == null)
-			return;
-		mBleGatt.close();
-		mBleGatt = null;
+	public void disconnectBleDevice() {
+		if (mBleGatt != null) {
+			mBleGatt.disconnect();
+			mBleGatt.close();
+			mBleGatt = null;
+		}
 	}
 
 	public void readCharacteristic(BluetoothGattCharacteristic characteristic) {
-		if (mBtAdapter == null || mBleGatt == null) {
+		if (mBleGatt == null) {
 			TLog.d("Bluetooth not initialized");
 			throw new IllegalStateException("Error!! Bluetooth not initialized!!");
 		}
@@ -228,9 +221,9 @@ public class BleMngService extends Service {
 	/* 指定CharacteristicのCallback登録 */
 	public void setCharacteristicNotification(BluetoothGattCharacteristic characteristic, boolean enabled) {
 		TLog.d("setCharacteristicNotification() s");
-		if (mBtAdapter == null || mBleGatt == null) {
-			TLog.d("setCharacteristicNotification() e false");
-			return;
+		if (mBleGatt == null) {
+			TLog.d("Bluetooth not initialized");
+			throw new IllegalStateException("Error!! Bluetooth not initialized!!");
 		}
 
 		mBleGatt.setCharacteristicNotification(characteristic, enabled);
