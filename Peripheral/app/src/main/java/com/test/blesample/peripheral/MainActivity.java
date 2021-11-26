@@ -24,12 +24,9 @@ import static com.test.blesample.peripheral.Constants.BLEMSG_1;
 import static com.test.blesample.peripheral.Constants.BLEMSG_2;
 
 public class MainActivity extends AppCompatActivity {
-
-	private BluetoothGattCharacteristic mSampleCharacteristic;
-
-	private BluetoothGattServer mGattServer;
-	private HashSet<BluetoothDevice> mBluetoothDevices;
-
+	private BluetoothGattCharacteristic		mSampleCharacteristic;
+	private BluetoothGattServer				mGattServer;
+	private final HashSet<BluetoothDevice>	mBluetoothDevices = new HashSet<>();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -75,7 +72,6 @@ public class MainActivity extends AppCompatActivity {
 
 	private void setGattServer() {
 
-		mBluetoothDevices = new HashSet<>();
 		BluetoothManager bluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
 		if (bluetoothManager != null) {
 			mGattServer = bluetoothManager.openGattServer(this, mGattServerCallback);
@@ -170,6 +166,7 @@ public class MainActivity extends AppCompatActivity {
 		@Override
 		public void onConnectionStateChange(BluetoothDevice device, final int status, int newState) {
 			super.onConnectionStateChange(device, status, newState);
+			TLog.d("status={0} newState={1}", status, newState);
 
 			String msg;
 			if (status == BluetoothGatt.GATT_SUCCESS) {
