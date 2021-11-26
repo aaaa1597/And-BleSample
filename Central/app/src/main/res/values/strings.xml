@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">BluetoothLE</string>
+    <string name="app_name">Central</string>
     <string name="choose_app_role">Choose the device role:</string>
     <string name="button_role_peripheral">Peripheral/Server</string>
     <string name="button_role_central">Central/Client</string>
