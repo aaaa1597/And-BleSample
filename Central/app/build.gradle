@@ -4,12 +4,8 @@ android {
     compileSdkVersion 26
     defaultConfig {
         applicationId "com.test.blesample.central"
-        /*
-         In Android 5.0, an Android device can now act as a Bluetooth LE peripheral device.
-         Android 4.3 introduced platform support for Bluetooth Low Energy (Bluetooth LE)
-         in the central role
-         */
         minSdkVersion 26
+        //noinspection ExpiredTargetSdkVersion
         targetSdkVersion 26
         versionCode 1
         versionName "1.0"
