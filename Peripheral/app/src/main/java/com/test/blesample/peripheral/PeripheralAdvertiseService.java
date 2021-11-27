@@ -70,7 +70,7 @@ public class PeripheralAdvertiseService extends Service {
     }
 
     private void startAdvertising() {
-        TLog.d("Service: Starting Advertising");
+        TLog.d("Service: Start Advertising");
         if (mAdvertiseCallback == null) {
             AdvertiseSettings settings = buildAdvertiseSettings();
             AdvertiseData data = buildAdvertiseData();
@@ -83,6 +83,7 @@ public class PeripheralAdvertiseService extends Service {
     }
 
     private void stopAdvertising() {
+        TLog.d("Service: Stop Advertising");
         if (mBluetoothLeAdvertiser != null) {
             mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback);
             mAdvertiseCallback = null;
@@ -107,7 +108,7 @@ public class PeripheralAdvertiseService extends Service {
     private AdvertiseSettings buildAdvertiseSettings() {
         AdvertiseSettings.Builder settingsBuilder = new AdvertiseSettings.Builder();
         settingsBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER);
-        settingsBuilder.setTimeout(0);
+        settingsBuilder.setTimeout(0);  /* タイムアウトは自前で管理する。 */
         return settingsBuilder.build();
     }
 
@@ -116,7 +117,7 @@ public class PeripheralAdvertiseService extends Service {
         @Override
         public void onStartFailure(int errorCode) {
             super.onStartFailure(errorCode);
-            /* アドバタイズのサイズがデカすぎ...AdvertiseCallback.ADVERTISE_FAILED_DATA_TOO_LARGE */
+            /* アドバタイズのサイズがデカすぎの時は、AdvertiseCallback.ADVERTISE_FAILED_DATA_TOO_LARGEが発生する。 */
             TLog.d("Advertising failed error={0}", errorCode);
             stopSelf();
         }
