@@ -16,7 +16,7 @@ import android.os.IBinder;
 
 import java.util.List;
 
-import static com.test.blesample.central.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
+import static com.test.blesample.central.Constants.UWS_CHARACTERISTIC_SAMLE_UUID;
 import static com.test.blesample.central.DeviceConnectActivity.EXTRAS_DEVICE_ADDRESS;
 
 
@@ -69,7 +69,7 @@ public class BleMngService extends Service {
 
 		@Override
 		public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-			TLog.w("Discovery終了 result : {0}", status);
+			TLog.d("Discovery終了 result : {0}", status);
 			if (status == BluetoothGatt.GATT_SUCCESS) {
 				/* Intent送信(Service->Activity) */
 				sendBroadcast(new Intent(UWS_GATT_SERVICES_DISCOVERED));
@@ -99,7 +99,7 @@ public class BleMngService extends Service {
 	/* データ受信(peripheral -> Service -> Activity) */
 	private void parseRcvData(final String action, final BluetoothGattCharacteristic characteristic) {
 		Intent intent = new Intent(action);
-		if (BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID.equals(characteristic.getUuid())) {
+		if (UWS_CHARACTERISTIC_SAMLE_UUID.equals(characteristic.getUuid())) {
 			/* 受信データ取出し */
 			int flag = characteristic.getProperties();
 			int format = ((flag & 0x01) != 0) ? BluetoothGattCharacteristic.FORMAT_UINT16 : BluetoothGattCharacteristic.FORMAT_UINT8;

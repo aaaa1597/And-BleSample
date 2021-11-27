@@ -18,8 +18,8 @@ import android.widget.Toast;
 import java.util.Arrays;
 import java.util.HashSet;
 
-import static com.test.blesample.peripheral.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
-import static com.test.blesample.peripheral.Constants.HEART_RATE_SERVICE_UUID;
+import static com.test.blesample.peripheral.Constants.UWS_SERVICE_UUID;
+import static com.test.blesample.peripheral.Constants.UWS_CHARACTERISTIC_SAMLE_UUID;
 import static com.test.blesample.peripheral.Constants.BLEMSG_1;
 import static com.test.blesample.peripheral.Constants.BLEMSG_2;
 
@@ -84,14 +84,14 @@ public class MainActivity extends AppCompatActivity {
 	private void setBluetoothService() {
 
 		// create the Service
-		BluetoothGattService sampleService = new BluetoothGattService(HEART_RATE_SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
+		BluetoothGattService sampleService = new BluetoothGattService(UWS_SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
 		/*
 		create the Characteristic.
 		we need to grant to the Client permission to read (for when the user clicks the "Request Characteristic" button).
 		no need for notify permission as this is an action the Server initiate.
 		 */
-		mSampleCharacteristic = new BluetoothGattCharacteristic(BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID, BluetoothGattCharacteristic.PROPERTY_NOTIFY | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+		mSampleCharacteristic = new BluetoothGattCharacteristic(UWS_CHARACTERISTIC_SAMLE_UUID, BluetoothGattCharacteristic.PROPERTY_NOTIFY | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
 		setCharacteristic(); // set initial state
 
 		// add the Characteristic to the Service

@@ -20,8 +20,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.test.blesample.central.Constants.BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID;
-import static com.test.blesample.central.Constants.HEART_RATE_SERVICE_UUID;
+import static com.test.blesample.central.Constants.UWS_CHARACTERISTIC_SAMLE_UUID;
+import static com.test.blesample.central.Constants.UWS_SERVICE_UUID;
 import static com.test.blesample.central.Constants.BLEMSG_1;
 
 public class DeviceConnectActivity extends AppCompatActivity {
@@ -143,7 +143,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 					break;
 
 				case BleMngService.UWS_GATT_SERVICES_DISCOVERED:
-					mCharacteristic = findTerget(mBLeMngServ.getSupportedGattServices(), HEART_RATE_SERVICE_UUID, BODY_SENSOR_LOCATION_CHARACTERISTIC_UUID);
+					mCharacteristic = findTerget(mBLeMngServ.getSupportedGattServices(), UWS_SERVICE_UUID, UWS_CHARACTERISTIC_SAMLE_UUID);
 					if (mCharacteristic != null) {
 						mBLeMngServ.readCharacteristic(mCharacteristic);
 						mBLeMngServ.setCharacteristicNotification(mCharacteristic, true);
@@ -162,6 +162,10 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	private BluetoothGattCharacteristic findTerget(List<BluetoothGattService> supportedGattServices, UUID ServiceUuid, UUID CharacteristicUuid) {
 		BluetoothGattCharacteristic ret = null;
 		for (BluetoothGattService service : supportedGattServices) {
+			/*-*-----------------------------------*/
+			for(BluetoothGattCharacteristic GattChara : service.getCharacteristics())
+				TLog.d("{0} : service-UUID={1} Chara-UUID={2}", mDeviceAddress, service.getUuid(), GattChara.getUuid());
+			/*-*-----------------------------------*/
 			if( !service.getUuid().equals(ServiceUuid))
 				continue;
 
