@@ -1,5 +1,7 @@
 package com.test.blesample.peripheral;
 
+import android.Manifest;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -10,6 +12,7 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.RadioGroup;
@@ -27,6 +30,8 @@ public class MainActivity extends AppCompatActivity {
 	private BluetoothGattCharacteristic		mSampleCharacteristic;
 	private BluetoothGattServer				mGattServer;
 	private final HashSet<BluetoothDevice>	mBluetoothDevices = new HashSet<>();
+	private final static int  REQUEST_ENABLE_BT		= 0x1111;
+	private final static int  REQUEST_PERMISSIONS	= 0x2222;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -49,41 +54,52 @@ public class MainActivity extends AppCompatActivity {
 			setCharacteristic(checkedId);
 		});
 
-		setGattServer();
-		setBluetoothService();
-	}
+		/* Bluetoothのサポート状況チェック 未サポート端末なら起動しない */
+		if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
+		}
 
-	/**
-	 * Starts BLE Advertising by starting {@code PeripheralAdvertiseService}.
-	 */
-	private void startAdvertising() {
-		// TODO bluetooth - maybe bindService? what happens when closing app?
-		startService(getServiceIntent(this));
-	}
+		/* 権限が許可されていない場合はリクエスト. */
+		if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+			requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_PERMISSIONS);
+		}
 
-
-	/**
-	 * Stops BLE Advertising by stopping {@code PeripheralAdvertiseService}.
-	 */
-	private void stopAdvertising() {
-		stopService(getServiceIntent(this));
-		((Switch)findViewById(R.id.advertise_switch)).setChecked(false);
-	}
-
-	private void setGattServer() {
-
-		BluetoothManager bluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
-		if (bluetoothManager != null) {
-			mGattServer = bluetoothManager.openGattServer(this, mGattServerCallback);
+		final BluetoothManager bluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
+		BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+		/* Bluetooth未サポート判定 未サポートならエラーpopupで終了 */
+		if (bluetoothAdapter == null) {
+			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
+		}
+		/* Bluetooth ON/OFF判定 -> OFFならONにするようにリクエスト */
+		else if( !bluetoothAdapter.isEnabled()) {
+			Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+			startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
 		}
 		else {
-			Toast.makeText(getApplicationContext(), R.string.error_unknown, Toast.LENGTH_LONG).show();
+			/* Bluetooth機能ONだった */
+			mGattServer = bluetoothManager.openGattServer(this, mGattServerCallback);
+			/* 自分自身のペリフェラル特性を定義 */
+			setBluetoothService();
+		}
+	}
+
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+		if(requestCode == REQUEST_ENABLE_BT) {
+			/* Bluetooth機能ONになった。 */
+			BluetoothManager bluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
+			mGattServer = bluetoothManager.openGattServer(getApplicationContext(), mGattServerCallback);
+			/* 自分自身のペリフェラル特性を定義 */
+			setBluetoothService();
+		}
+		else {
+			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetooth機能をONにする必要があります。").Show(MainActivity.this);
 		}
 	}
 
 	private void setBluetoothService() {
-
-		// create the Service
+		/* 自身が提供するサービスを定義 */
 		BluetoothGattService sampleService = new BluetoothGattService(UWS_SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
 		/*
@@ -91,6 +107,7 @@ public class MainActivity extends AppCompatActivity {
 		we need to grant to the Client permission to read (for when the user clicks the "Request Characteristic" button).
 		no need for notify permission as this is an action the Server initiate.
 		 */
+		/* 自身が提供するCharacteristic(特性)を定義 :  */
 		mSampleCharacteristic = new BluetoothGattCharacteristic(UWS_CHARACTERISTIC_SAMLE_UUID, BluetoothGattCharacteristic.PROPERTY_NOTIFY | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
 		setCharacteristic(); // set initial state
 
@@ -103,9 +120,27 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
+	/**
+	 * Starts BLE Advertising by starting {@code PeripheralAdvertiseService}.
+	 */
+	private void startAdvertising() {
+		// TODO bluetooth - maybe bindService? what happens when closing app?
+		startService(getServiceIntent(getApplicationContext()));
+	}
+
+
+	/**
+	 * Stops BLE Advertising by stopping {@code PeripheralAdvertiseService}.
+	 */
+	private void stopAdvertising() {
+		stopService(getServiceIntent(getApplicationContext()));
+		((Switch)findViewById(R.id.advertise_switch)).setChecked(false);
+	}
+
+
 
 	private void setCharacteristic() {
-		setCharacteristic(R.id.color_option_1);
+		setCharacteristic(R.id.rbn_value_1);
 	}
 
 	/*
@@ -121,7 +156,7 @@ public class MainActivity extends AppCompatActivity {
 		/*
 		done each time the user changes a value of a Characteristic
 		 */
-		int value = checkedId == R.id.color_option_1 ? BLEMSG_1 : BLEMSG_2;
+		int value = checkedId == R.id.rbn_value_1 ? BLEMSG_1 : BLEMSG_2;
 		mSampleCharacteristic.setValue(getValue(value));
 	}
 
@@ -156,9 +191,7 @@ public class MainActivity extends AppCompatActivity {
 
 
 	private final BluetoothGattServerCallback mGattServerCallback = new BluetoothGattServerCallback() {
-
 		/**
-		 *
 		 * @param device
 		 * @param status	int: Status of the connect or disconnect operation. BluetoothGatt.GATT_SUCCESS if the operation succeeds.
 		 * @param newState	BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile#STATE_CONNECTED
@@ -167,20 +200,15 @@ public class MainActivity extends AppCompatActivity {
 		public void onConnectionStateChange(BluetoothDevice device, final int status, int newState) {
 			super.onConnectionStateChange(device, status, newState);
 			TLog.d("status={0} newState={1}", status, newState);
+			TLog.d("status-BluetoothGatt.GATT_SUCCESS({0}) newState-({1})", BluetoothGatt.GATT_SUCCESS, newState);
 
 			String msg;
 			if (status == BluetoothGatt.GATT_SUCCESS) {
-
 				if (newState == BluetoothGatt.STATE_CONNECTED) {
-
 					mBluetoothDevices.add(device);
-
-					msg = "Connected to device: " + device.getAddress();
-					TLog.d(msg);
-					Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
-
-				} else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-
+					TLog.d("Connected to device: {0}", device.getAddress());
+				}
+				else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
 					mBluetoothDevices.remove(device);
 
 					msg = "Disconnected from device";
