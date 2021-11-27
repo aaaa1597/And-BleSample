@@ -17,7 +17,7 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.RadioGroup;
 import android.widget.Switch;
-import android.widget.Toast;
+
 import java.util.Arrays;
 import java.util.HashSet;
 
@@ -27,7 +27,7 @@ import static com.test.blesample.peripheral.Constants.BLEMSG_1;
 import static com.test.blesample.peripheral.Constants.BLEMSG_2;
 
 public class MainActivity extends AppCompatActivity {
-	private BluetoothGattCharacteristic		mSampleCharacteristic;
+	private BluetoothGattCharacteristic mUwsCharacteristic;
 	private BluetoothGattServer				mGattServer;
 	private final HashSet<BluetoothDevice>	mBluetoothDevices = new HashSet<>();
 	private final static int  REQUEST_ENABLE_BT		= 0x1111;
@@ -40,9 +40,9 @@ public class MainActivity extends AppCompatActivity {
 
 		/* 通知ボタン(Centralへ送信) */
 		findViewById(R.id.button_notify).setOnClickListener(view -> {
-			boolean indicate = (mSampleCharacteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) == BluetoothGattCharacteristic.PROPERTY_INDICATE;
+			boolean indicate = (mUwsCharacteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) == BluetoothGattCharacteristic.PROPERTY_INDICATE;
 			for (BluetoothDevice device : mBluetoothDevices) {
-				mGattServer.notifyCharacteristicChanged(device, mSampleCharacteristic, indicate);
+				mGattServer.notifyCharacteristicChanged(device, mUwsCharacteristic, indicate);
 			}
 		});
 
@@ -60,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
 		/* 値変更ボタン */
 		((RadioGroup)findViewById(R.id.color_switch)).setOnCheckedChangeListener((group, checkedId) -> {
 			int value = checkedId == R.id.rbn_value_1 ? BLEMSG_1 : BLEMSG_2;
-			mSampleCharacteristic.setValue(int2bytes(value));
+			mUwsCharacteristic.setValue(int2bytes(value));
 		});
 
 		/* Bluetoothのサポート状況チェック 未サポート端末なら起動しない */
@@ -121,11 +121,11 @@ public class MainActivity extends AppCompatActivity {
 		BluetoothGattService ownService = new BluetoothGattService(UWS_SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
 		/* 自身が提供するCharacteristic(特性)を定義 : 通知と読込みに対し、読込み許可 */
-		mSampleCharacteristic = new BluetoothGattCharacteristic(UWS_CHARACTERISTIC_SAMLE_UUID, BluetoothGattCharacteristic.PROPERTY_NOTIFY | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
-		mSampleCharacteristic.setValue(int2bytes(BLEMSG_1));
+		mUwsCharacteristic = new BluetoothGattCharacteristic(UWS_CHARACTERISTIC_SAMLE_UUID, BluetoothGattCharacteristic.PROPERTY_NOTIFY | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+		mUwsCharacteristic.setValue(int2bytes(BLEMSG_1));
 
 		/* 定義したサービスにCharacteristic(特性)を付与 */
-		ownService.addCharacteristic(mSampleCharacteristic);
+		ownService.addCharacteristic(mUwsCharacteristic);
 
 		/* 定義したサービスを有効化 */
 		mGattServer.addService(ownService);
@@ -133,6 +133,7 @@ public class MainActivity extends AppCompatActivity {
 
 	private final BluetoothGattServerCallback mGattServerCallback = new BluetoothGattServerCallback() {
 		/**
+		 * 接続状態変化通知
 		 * @param device
 		 * @param status	int: Status of the connect or disconnect operation. BluetoothGatt.GATT_SUCCESS if the operation succeeds.
 		 * @param newState	BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile#STATE_CONNECTED
@@ -142,8 +143,6 @@ public class MainActivity extends AppCompatActivity {
 			super.onConnectionStateChange(device, status, newState);
 			TLog.d("status={0} newState={1}", status, newState);
 			TLog.d("status-BluetoothGatt.GATT_SUCCESS({0}) newState-BluetoothGatt.STATE_xxxx(STATE_CONNECTED({1}),STATE_DISCONNECTED({2}))", BluetoothGatt.GATT_SUCCESS, BluetoothGatt.STATE_CONNECTED, BluetoothGatt.STATE_DISCONNECTED);
-
-			String msg;
 			if (status == BluetoothGatt.GATT_SUCCESS) {
 				if (newState == BluetoothGatt.STATE_CONNECTED) {
 					mBluetoothDevices.add(device);
@@ -151,125 +150,102 @@ public class MainActivity extends AppCompatActivity {
 				}
 				else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
 					mBluetoothDevices.remove(device);
-
-					msg = "Disconnected from device";
-					TLog.d(msg);
-					Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
+					TLog.d("Disconnected from device");
 				}
-
 			}
 			else {
 				mBluetoothDevices.remove(device);
-
-				msg = getString(R.string.status_error_when_connecting) + ": " + status;
-				TLog.e(msg);
-				Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
-
+				TLog.e("{0} : {1}",getString(R.string.status_error_when_connecting), status);
+				MsgPopUp.create(MainActivity.this).setErrMsg(getString(R.string.status_error_when_connecting) + ":" + status).Show(MainActivity.this);
 			}
 		}
 
-
+		/* 通知/指示受信 */
 		@Override
 		public void onNotificationSent(BluetoothDevice device, int status) {
 			super.onNotificationSent(device, status);
 			TLog.d("Notification sent. Status: " + status);
 		}
 
-
+		/* Read要求受信 */
 		@Override
 		public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
-
 			super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
 
-			if (mGattServer == null) {
-				return;
-			}
-
-			TLog.d("Device tried to read characteristic: " + characteristic.getUuid());
-			TLog.d("Value: " + Arrays.toString(characteristic.getValue()));
-
+			TLog.d("CentralからのRead要求 返却値:(UUID:{0},vat:{1}))", characteristic.getUuid(), Arrays.toString(characteristic.getValue()));
 			mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, characteristic.getValue());
 		}
 
 
+		/* Write要求受信 */
 		@Override
 		public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
-
 			super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
 
-			TLog.d("Characteristic Write request: " + Arrays.toString(value));
-
-			mSampleCharacteristic.setValue(value);
-
-			if (responseNeeded) {
+			TLog.d("CentralからのWrite要求 受信値:(UUID:{0},vat:{1}))", mUwsCharacteristic.getUuid(), Arrays.toString(value));
+			mUwsCharacteristic.setValue(value);
+			if (responseNeeded)
 				mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, value);
-			}
-
 		}
 
+		/* Read要求受信 */
 		@Override
 		public void onDescriptorReadRequest(BluetoothDevice device, int requestId, int offset, BluetoothGattDescriptor descriptor) {
-
 			super.onDescriptorReadRequest(device, requestId, offset, descriptor);
 
-			if (mGattServer == null) {
-				return;
-			}
-
-			TLog.d("Device tried to read descriptor: " + descriptor.getUuid());
-			TLog.d("Value: " + Arrays.toString(descriptor.getValue()));
-
+			TLog.d("CentralからのDescriptor_Read要求 返却値:(UUID:{0},vat:{1}))", descriptor.getUuid(), Arrays.toString(descriptor.getValue()));
 			mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, descriptor.getValue());
 		}
 
+		/* Write要求受信 */
 		@Override
 		public void onDescriptorWriteRequest(BluetoothDevice device, int requestId,
 											 BluetoothGattDescriptor descriptor, boolean preparedWrite, boolean responseNeeded,
 											 int offset,
 											 byte[] value) {
-
 			super.onDescriptorWriteRequest(device, requestId, descriptor, preparedWrite, responseNeeded, offset, value);
 
-			TLog.d("Descriptor Write Request " + descriptor.getUuid() + " " + Arrays.toString(value));
+			TLog.d("CentralからのDescriptor_Write要求 受信値:(UUID:{0},vat:{1}))", descriptor.getUuid(), Arrays.toString(value));
 
 //            int status = BluetoothGatt.GATT_SUCCESS;
 //            if (descriptor.getUuid() == CLIENT_CHARACTERISTIC_CONFIGURATION_UUID) {
 //                BluetoothGattCharacteristic characteristic = descriptor.getCharacteristic();
-//                boolean supportsNotifications = (characteristic.getProperties() &
-//                        BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0;
-//                boolean supportsIndications = (characteristic.getProperties() &
-//                        BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0;
+//                boolean supportsNotifications = (characteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0;
+//                boolean supportsIndications   = (characteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0;
 //
 //                if (!(supportsNotifications || supportsIndications)) {
 //                    status = BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED;
-//                } else if (value.length != 2) {
+//                }
+//                else if (value.length != 2) {
 //                    status = BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH;
-//                } else if (Arrays.equals(value, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)) {
+//                }
+//                else if (Arrays.equals(value, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)) {
 //                    status = BluetoothGatt.GATT_SUCCESS;
 //                    mCurrentServiceFragment.notificationsDisabled(characteristic);
 //                    descriptor.setValue(value);
-//                } else if (supportsNotifications &&
+//                }
+//                else if (supportsNotifications &&
 //                        Arrays.equals(value, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
 //                    status = BluetoothGatt.GATT_SUCCESS;
 //                    mCurrentServiceFragment.notificationsEnabled(characteristic, false /* indicate */);
 //                    descriptor.setValue(value);
-//                } else if (supportsIndications &&
+//                }
+//                else if (supportsIndications &&
 //                        Arrays.equals(value, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)) {
 //                    status = BluetoothGatt.GATT_SUCCESS;
 //                    mCurrentServiceFragment.notificationsEnabled(characteristic, true /* indicate */);
 //                    descriptor.setValue(value);
-//                } else {
+//                }
+//                else {
 //                    status = BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED;
 //                }
-//            } else {
+//            }
+//            else {
 //                status = BluetoothGatt.GATT_SUCCESS;
 //                descriptor.setValue(value);
 //            }
-//            if (responseNeeded) {
-//                mGattServer.sendResponse(device, requestId, status,
-//            /* No need to respond with offset */ 0,
-//            /* No need to respond with a value */ null);
-//            }
+            if (responseNeeded)
+                mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS,0,null);
 
 		}
 	};

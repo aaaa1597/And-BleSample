@@ -30,10 +30,10 @@ public class PeripheralAdvertiseService extends Service {
      */
     public static boolean running = false;
 
-    private BluetoothLeAdvertiser mBluetoothLeAdvertiser;
-    private AdvertiseCallback mAdvertiseCallback;
-    private Handler mHandler;
-    private Runnable timeoutRunnable;
+    private BluetoothLeAdvertiser   mBluetoothLeAdvertiser;
+    private AdvertiseCallback       mAdvertiseCallback;
+    private Handler                 mHandler;
+    private Runnable                timeoutRunnable;
 
     /**
      * Length of time to allow advertising before automatically shutting off. (10 minutes)
