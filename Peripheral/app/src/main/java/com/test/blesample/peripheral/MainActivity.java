@@ -1,8 +1,11 @@
 package com.test.blesample.peripheral;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.Manifest;
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -86,7 +89,23 @@ public class MainActivity extends AppCompatActivity {
 		/* Bluetooth ON/OFF判定 -> OFFならONにするようにリクエスト */
 		else if( !bluetoothAdapter.isEnabled()) {
 			Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-			startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+			ActivityResultLauncher<Intent> startForResult = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+					result -> {
+						if(result.getResultCode() != Activity.RESULT_OK) {
+							MsgPopUp.create(MainActivity.this).setErrMsg("BluetoothがOFFです。ONにして操作してください。\n終了します。").Show(MainActivity.this);
+						}
+						else {
+							/* Bluetooth機能ONだった */
+							mGattServer = bluetoothManager.openGattServer(this, mGattServerCallback);
+							if(mGattServer == null) {
+								MsgPopUp.create(MainActivity.this).setErrMsg("Ble初期化に失敗!!\n終了します。再起動で直る可能性があります。").Show(MainActivity.this);
+								finish();
+							}
+							/* 自分自身のペリフェラル特性を定義 */
+							defineOwnCharacteristic();
+						}
+					});
+			startForResult.launch(enableBtIntent);
 		}
 		else {
 			/* Bluetooth機能ONだった */
@@ -97,25 +116,6 @@ public class MainActivity extends AppCompatActivity {
 			}
 			/* 自分自身のペリフェラル特性を定義 */
 			defineOwnCharacteristic();
-		}
-	}
-
-	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		super.onActivityResult(requestCode, resultCode, data);
-		if(requestCode == REQUEST_ENABLE_BT) {
-			/* Bluetooth機能ONになった。 */
-			BluetoothManager bluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
-			mGattServer = bluetoothManager.openGattServer(getApplicationContext(), mGattServerCallback);
-			if(mGattServer == null) {
-				MsgPopUp.create(MainActivity.this).setErrMsg("Ble初期化に失敗!!\n終了します。再起動で直る可能性があります。").Show(MainActivity.this);
-				finish();
-			}
-			/* 自分自身のペリフェラル特性を定義 */
-			defineOwnCharacteristic();
-		}
-		else {
-			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetooth機能をONにする必要があります。").Show(MainActivity.this);
 		}
 	}
 
