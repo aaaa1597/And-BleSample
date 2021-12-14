@@ -1,6 +1,13 @@
 package com.test.blesample.central;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import android.Manifest;
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
@@ -11,14 +18,14 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.design.widget.Snackbar;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
 import android.widget.Button;
+
+import com.google.android.material.snackbar.Snackbar;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,7 +35,6 @@ public class MainActivity extends AppCompatActivity {
 	private Handler									mHandler;
 	private ScanCallback							mScanCallback = null;
 	private BluetoothLeScanner						mBLeScanner;
-	private final static int  REQUEST_ENABLE_BT		= 0x1111;
 	private final static int  REQUEST_PERMISSIONS	= 0x2222;
 	private final static long SCAN_PERIOD			= 30000;	/* m秒 */
 
@@ -67,9 +73,12 @@ public class MainActivity extends AppCompatActivity {
 			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
 		}
 
-		/* 権限が許可されていない場合はリクエスト. */
-		if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-			requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_PERMISSIONS);
+		/* Bluetooth権限が許可されていない場合はリクエスト. */
+		if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+				requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT}, REQUEST_PERMISSIONS);
+			else
+				requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_PERMISSIONS);
 		}
 
 		final BluetoothManager bluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
@@ -81,23 +90,20 @@ public class MainActivity extends AppCompatActivity {
 		/* Bluetooth ON/OFF判定 -> OFFならONにするようにリクエスト */
 		else if( !mBluetoothAdapter.isEnabled()) {
 			Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-			startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+			ActivityResultLauncher<Intent> startForResult = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+					result -> {
+						if(result.getResultCode() != Activity.RESULT_OK) {
+							MsgPopUp.create(MainActivity.this).setErrMsg("BluetoothがOFFです。ONにして操作してください。\n終了します。").Show(MainActivity.this);
+						}
+						else {
+							startBLEScan();
+						}
+					});
+			startForResult.launch(enableBtIntent);
 		}
 		else {
 			/* Bluetooth機能ONだった */
 			startBLEScan();
-		}
-	}
-
-	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		super.onActivityResult(requestCode, resultCode, data);
-		if(requestCode == REQUEST_ENABLE_BT) {
-			/* Bluetooth機能ONになった。 */
-			startBLEScan();
-		}
-		else {
-			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetooth機能をONにする必要があります。").Show(MainActivity.this);
 		}
 	}
 

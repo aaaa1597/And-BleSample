@@ -9,13 +9,6 @@
     android:orientation="vertical"
     android:gravity="center_horizontal">
 
-    <android.support.v7.widget.Toolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"/>
-
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -56,7 +49,6 @@
 
     </RadioGroup>
 
-
     <Button
         android:id="@+id/button_notify"
         android:layout_width="wrap_content"
@@ -67,6 +59,5 @@
         android:background="#BDBDBD"
         android:padding="8dp"
         android:elevation="4dp"/>
-
 
 </LinearLayout>

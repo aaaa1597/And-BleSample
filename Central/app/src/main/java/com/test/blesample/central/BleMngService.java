@@ -1,5 +1,6 @@
 package com.test.blesample.central;
 
+import androidx.annotation.Nullable;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -13,12 +14,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
-
 import java.util.List;
 
 import static com.test.blesample.central.Constants.UWS_CHARACTERISTIC_SAMLE_UUID;
 import static com.test.blesample.central.DeviceConnectActivity.EXTRAS_DEVICE_ADDRESS;
-
 
 public class BleMngService extends Service {
 	/* サブクラス : BleMngService.LocalBinder */
@@ -123,6 +122,7 @@ public class BleMngService extends Service {
 		sendBroadcast(intent);
 	}
 
+	@Nullable
 	@Override
 	public IBinder onBind(Intent intent) {
 		TLog.d("onBind() s-e");

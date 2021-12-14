@@ -1,7 +1,6 @@
 package com.test.blesample.peripheral;
 
 import android.app.Activity;
-import android.support.v4.content.res.ResourcesCompat;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -9,6 +8,8 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+
+import androidx.core.content.res.ResourcesCompat;
 
 public class MsgPopUp extends PopupWindow {
 	/* コンストラクタ */
