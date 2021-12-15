@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.tks.uwsserverunit00.Constants.UWS_CHARACTERISTIC_SAMLE_UUID;
+import static com.tks.uwsserverunit00.Constants.UWS_CHARACTERISTIC_HRATBEAT_UUID;
 import static com.tks.uwsserverunit00.Constants.UWS_SERVICE_UUID;
 import static com.tks.uwsserverunit00.Constants.BLEMSG_1;
 
@@ -144,7 +144,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 					break;
 
 				case BleServerService.UWS_GATT_SERVICES_DISCOVERED:
-					mCharacteristic = findTerget(mBLeMngServ.getSupportedGattServices(), UWS_SERVICE_UUID, UWS_CHARACTERISTIC_SAMLE_UUID);
+					mCharacteristic = findTerget(mBLeMngServ.getSupportedGattServices(), UWS_SERVICE_UUID, UWS_CHARACTERISTIC_HRATBEAT_UUID);
 					if (mCharacteristic != null) {
 						mBLeMngServ.readCharacteristic(mCharacteristic);
 						mBLeMngServ.setCharacteristicNotification(mCharacteristic, true);

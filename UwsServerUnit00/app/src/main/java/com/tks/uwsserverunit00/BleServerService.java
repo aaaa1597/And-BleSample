@@ -16,7 +16,7 @@ import android.os.Binder;
 import android.os.IBinder;
 import java.util.List;
 
-import static com.tks.uwsserverunit00.Constants.UWS_CHARACTERISTIC_SAMLE_UUID;
+import static com.tks.uwsserverunit00.Constants.UWS_CHARACTERISTIC_HRATBEAT_UUID;
 import static com.tks.uwsserverunit00.DeviceConnectActivity.EXTRAS_DEVICE_ADDRESS;
 
 public class BleServerService extends Service {
@@ -105,7 +105,7 @@ public class BleServerService extends Service {
 	/* データ受信(peripheral -> Service -> Activity) */
 	private void parseRcvData(final String action, final BluetoothGattCharacteristic characteristic) {
 		Intent intent = new Intent(action);
-		if (UWS_CHARACTERISTIC_SAMLE_UUID.equals(characteristic.getUuid())) {
+		if (UWS_CHARACTERISTIC_HRATBEAT_UUID.equals(characteristic.getUuid())) {
 			/* 受信データ取出し */
 			int flag = characteristic.getProperties();
 			int format = ((flag & 0x01) != 0) ? BluetoothGattCharacteristic.FORMAT_UINT16 : BluetoothGattCharacteristic.FORMAT_UINT8;
