@@ -291,7 +291,10 @@ public class MainActivity extends FragmentActivity {
 			@Override
 			public void onBatchScanResults(List<ScanResult> results) {
 				super.onBatchScanResults(results);
-				mDeviceListAdapter.addDevice(results);
+				List<DeviceInfo> addlist = new ArrayList<>();
+				for(ScanResult ret : results)
+					addlist.add(new DeviceInfo(ret.getDevice().getName(), ret.getDevice().getAddress(), ret.getRssi(), false, 0));
+				mDeviceListAdapter.addDevice(addlist);
 //				for(ScanResult result : results) {
 //					TLog.d("---------------------------------- size=" + results.size());
 //					TLog.d("aaaaa AdvertisingSid             =" + result.getAdvertisingSid());
@@ -318,7 +321,7 @@ public class MainActivity extends FragmentActivity {
 			@Override
 			public void onScanResult(int callbackType, ScanResult result) {
 				super.onScanResult(callbackType, result);
-				mDeviceListAdapter.addDevice(result);
+				mDeviceListAdapter.addDevice(new DeviceInfo(result.getDevice().getName(), result.getDevice().getAddress(), result.getRssi(), false, 0));
 				if(result.getScanRecord() != null && result.getScanRecord().getServiceUuids() != null)
 					TLog.d("発見!! {0}({1}):Rssi({2}) Uuids({3})", result.getDevice().getAddress(), result.getDevice().getName(), result.getRssi(), result.getScanRecord().getServiceUuids().toString());
 				else
