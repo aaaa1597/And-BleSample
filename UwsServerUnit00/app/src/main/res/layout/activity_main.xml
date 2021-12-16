@@ -23,7 +23,7 @@
         <!-- ロジック画面 -->
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/fragBizLogic"
-            android:name="com.tks.uwsserverunit00.ui.FragMain"
+            android:name="com.tks.uwsserverunit00.ui.FragBizLogic"
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
 

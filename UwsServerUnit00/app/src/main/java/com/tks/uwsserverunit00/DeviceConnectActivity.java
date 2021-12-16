@@ -10,6 +10,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.RemoteException;
 import android.text.TextUtils;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -21,6 +22,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.tks.uwsserverunit00.BleServerService.UWS_SERVICE_WAKEUP_NG;
+import static com.tks.uwsserverunit00.BleServerService.UWS_SERVICE_WAKEUP_NG_REASON;
+import static com.tks.uwsserverunit00.BleServerService.UWS_SERVICE_WAKEUP_OK;
 import static com.tks.uwsserverunit00.Constants.UWS_CHARACTERISTIC_HRATBEAT_UUID;
 import static com.tks.uwsserverunit00.Constants.UWS_SERVICE_UUID;
 import static com.tks.uwsserverunit00.Constants.BLEMSG_1;
@@ -30,7 +34,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	public static final String EXTRAS_DEVICE_ADDRESS= "com.tks.uws.DEVICE_ADDRESS";
 
 	private final ArrayList<ArrayList<BluetoothGattCharacteristic>> mDeviceServices = new ArrayList<>();
-	private BleServerService mBLeMngServ;
+	private IBleServerService			mBleServiceIf;
 	private BluetoothGattCharacteristic	mCharacteristic;
 	private String						mDeviceAddress;
 
@@ -38,12 +42,27 @@ public class DeviceConnectActivity extends AppCompatActivity {
 	private final ServiceConnection mCon = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName componentName, IBinder service) {
-			TLog.d("BLE管理サービス接続-確立");
-			mBLeMngServ = ((BleServerService.LocalBinder)service).getService();
+			TLog.d("BLE管理サービス接続-確立 service={0}", service);
+			mBleServiceIf = IBleServerService.Stub.asInterface(service);
+
+			int ret = 0;
+			try { ret = mBleServiceIf.connectBleDevice(mDeviceAddress);}
+			catch (RemoteException e) { e.printStackTrace();}
+			if( ret < 0) {
+				TLog.d("BLE初期化/接続失敗!!");
+				Intent resintent = new Intent(UWS_SERVICE_WAKEUP_NG);
+				resintent.putExtra(UWS_SERVICE_WAKEUP_NG_REASON, ret);
+				sendBroadcast(resintent);
+			}
+			else {
+				TLog.d("BLE初期化/接続成功.");
+				Intent resintent = new Intent(UWS_SERVICE_WAKEUP_OK);
+				sendBroadcast(resintent);
+			}
 		}
 		@Override
 		public void onServiceDisconnected(ComponentName componentName) {
-			mBLeMngServ = null;
+			mBleServiceIf = null;
 		}
 	};
 
@@ -54,7 +73,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 
 		/* 受信するブロードキャストintentを登録 */
 		final IntentFilter intentFilter = new IntentFilter();
-		intentFilter.addAction(BleServerService.UWS_SERVICE_WAKEUP_OK);
+		intentFilter.addAction(UWS_SERVICE_WAKEUP_OK);
 		intentFilter.addAction(BleServerService.UWS_GATT_CONNECTED);
 		intentFilter.addAction(BleServerService.UWS_GATT_DISCONNECTED);
 		intentFilter.addAction(BleServerService.UWS_GATT_SERVICES_DISCOVERED);
@@ -63,8 +82,9 @@ public class DeviceConnectActivity extends AppCompatActivity {
 
 		/* 読出し要求ボタン */
 		findViewById(R.id.btnReqReadCharacteristic).setOnClickListener(view -> {
-			if (mBLeMngServ != null && mCharacteristic != null) {
-				mBLeMngServ.readCharacteristic(mCharacteristic);
+			if (mBleServiceIf != null && mCharacteristic != null) {
+				try { mBleServiceIf.readCharacteristic(mCharacteristic); }
+				catch (RemoteException e) { e.printStackTrace(); }
 			}
 			else {
 				Snackbar.make(findViewById(R.id.root_view_device), "Unknown error.", Snackbar.LENGTH_LONG).show();
@@ -98,7 +118,7 @@ public class DeviceConnectActivity extends AppCompatActivity {
 		super.onDestroy();
 		unregisterReceiver(mIntentListner);	/* 設定したブロードキャストintentを解除 */
 		unbindService(mCon);
-		mBLeMngServ = null;
+		mBleServiceIf = null;
 	}
 
 	private final BroadcastReceiver mIntentListner = new BroadcastReceiver() {
@@ -110,13 +130,13 @@ public class DeviceConnectActivity extends AppCompatActivity {
 
 			switch (action) {
 				/* Ble管理サービス正常起動 */
-				case BleServerService.UWS_SERVICE_WAKEUP_OK:
+				case UWS_SERVICE_WAKEUP_OK:
 					TLog.d("Service wake up OK.");
 					break;
 
 				/* Ble管理サービス起動失敗 */
-				case BleServerService.UWS_SERVICE_WAKEUP_NG:
-					int errReason = intent.getIntExtra(BleServerService.UWS_SERVICE_WAKEUP_NG_REASON, BleServerService.UWS_NG_REASON_INITBLE);
+				case UWS_SERVICE_WAKEUP_NG:
+					int errReason = intent.getIntExtra(UWS_SERVICE_WAKEUP_NG_REASON, BleServerService.UWS_NG_REASON_INITBLE);
 					if(errReason == BleServerService.UWS_NG_REASON_INITBLE)
 						ErrPopUp.create(DeviceConnectActivity.this).setErrMsg("Service起動中のBT初期化に失敗!!終了します。").Show(DeviceConnectActivity.this);
 					else if(errReason == BleServerService.UWS_NG_REASON_DEVICENOTFOUND)
@@ -144,10 +164,16 @@ public class DeviceConnectActivity extends AppCompatActivity {
 					break;
 
 				case BleServerService.UWS_GATT_SERVICES_DISCOVERED:
-					mCharacteristic = findTerget(mBLeMngServ.getSupportedGattServices(), UWS_SERVICE_UUID, UWS_CHARACTERISTIC_HRATBEAT_UUID);
-					if (mCharacteristic != null) {
-						mBLeMngServ.readCharacteristic(mCharacteristic);
-						mBLeMngServ.setCharacteristicNotification(mCharacteristic, true);
+					try { mCharacteristic = findTerget(mBleServiceIf.getSupportedGattServices(), UWS_SERVICE_UUID, UWS_CHARACTERISTIC_HRATBEAT_UUID); }
+					catch (RemoteException e) { e.printStackTrace(); }
+					if (mCharacteristic == null)
+						TLog.d("mCharacteristic is null. 対象外デバイス.");
+					else {
+						try {
+							mBleServiceIf.readCharacteristic(mCharacteristic);
+							mBleServiceIf.setCharacteristicNotification(mCharacteristic, true);
+						}
+						catch (RemoteException e) {e.printStackTrace();}
 					}
 					break;
 

@@ -12,19 +12,17 @@ import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
-import android.bluetooth.le.BluetoothLeScanner;
-import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanFilter;
-import android.bluetooth.le.ScanResult;
-import android.bluetooth.le.ScanSettings;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
+import android.os.RemoteException;
 import android.view.View;
 import android.widget.Button;
 
@@ -45,15 +43,16 @@ import com.google.android.gms.maps.model.Polyline;
 import com.google.android.material.snackbar.Snackbar;
 import com.tks.uwsserverunit00.ui.DeviceListAdapter;
 
-import java.util.ArrayList;
+import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 public class MainActivity extends FragmentActivity {
-//	private FragMainViewModel		mViewModel;
+//	private FragBizLogicViewModel	mViewModel;
 	private DeviceListAdapter		mDeviceListAdapter;
 	private final static int		REQUEST_PERMISSIONS = 1111;
 	private GoogleMap				mMap;
@@ -61,11 +60,6 @@ public class MainActivity extends FragmentActivity {
 	GoogleMap						mGoogleMap;
 	Map<String, SerchInfo>			mSerchInfos = new HashMap<>();
 	int								mNowSerchColor = 0xff78e06b;	/* 緑っぽい色 */
-
-	private Handler									mHandler;
-	private ScanCallback							mScanCallback = null;
-	private BluetoothLeScanner						mBLeScanner;
-	private final static long SCAN_PERIOD			= 30000;	/* m秒 */
 	/* 検索情報 */
 	static class SerchInfo {
 		public Marker	maker;		/* GoogleMapの Marker */
@@ -77,7 +71,16 @@ public class MainActivity extends FragmentActivity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		TLog.d("");
-//		mViewModel = new ViewModelProvider(this).get(FragMainViewModel.class);
+//		mViewModel = new ViewModelProvider(this).get(FragBizLogicViewModel.class);
+
+		/* Scanボタン押下処理 */
+		findViewById(R.id.btnScan).setOnClickListener(view -> {
+			Button btn = (Button)view;
+			if(btn.getText().equals("scan開始"))
+				startScan();
+			else
+				stopScan();
+		});
 
 		/* BLEデバイスリストの初期化 */
 		RecyclerView deviceListRvw = findViewById(R.id.rvw_devices);
@@ -90,8 +93,6 @@ public class MainActivity extends FragmentActivity {
 			@Override
 			public void onDeviceItemClick(View view, String deviceName, String deviceAddress) {
 				/* 接続画面に遷移 */
-				mBLeScanner.stopScan(mScanCallback);
-				mScanCallback = null;
 				Intent intent = new Intent(MainActivity.this, DeviceConnectActivity.class);
 				intent.putExtra(DeviceConnectActivity.EXTRAS_DEVICE_NAME	, deviceName);
 				intent.putExtra(DeviceConnectActivity.EXTRAS_DEVICE_ADDRESS	, deviceAddress);
@@ -99,13 +100,6 @@ public class MainActivity extends FragmentActivity {
 			}
 		});
 		deviceListRvw.setAdapter(mDeviceListAdapter);
-
-		findViewById(R.id.btnScan).setOnClickListener(view -> {
-			startScan();
-		});
-
-		/* UIスレッド非同期管理 */
-		mHandler = new Handler(Looper.getMainLooper());
 
 		/* Bluetoothのサポート状況チェック 未サポート端末なら起動しない */
 		if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
@@ -134,7 +128,7 @@ public class MainActivity extends FragmentActivity {
 							ErrPopUp.create(MainActivity.this).setErrMsg("BluetoothがOFFです。ONにして操作してください。\n終了します。").Show(MainActivity.this);
 						}
 						else {
-							startScan();
+							bindBleService();
 						}
 					});
 			startForResult.launch(enableBtIntent);
@@ -180,6 +174,8 @@ public class MainActivity extends FragmentActivity {
 				initDraw(mLocation, mMap);
 			}
 		});
+
+		bindBleService();
 	}
 
 	/* 初期地図描画(起動直後は現在地を表示する) */
@@ -223,28 +219,21 @@ public class MainActivity extends FragmentActivity {
 			return;
 		}
 		else {
-			startScan();
+			bindBleService();
 		}
 	}
 
-//	@Override
-//	protected void onDestroy() {
-//		super.onDestroy();
-//		TLog.d("onDestroy()");
-//		unbindService(mCon);
-//	}
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		TLog.d("onDestroy()");
+		unbindService(mCon);
+	}
 
-	/*
-	start Bluetooth Low Energy scan
-	 */
-	private void startScan() {
-		TLog.d("s");
-
-		if(mScanCallback != null) {
-			TLog.d("e すでにscan中。");
-			return;
-		}
-
+	/** **********
+	 * サービスBind
+	 * **********/
+	private void bindBleService() {
 		/* Bluetooth未サポート */
 		if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
 			TLog.d("Bluetooth未サポートの端末.何もしない.");
@@ -256,7 +245,6 @@ public class MainActivity extends FragmentActivity {
 			TLog.d("Bluetooth権限なし.何もしない.");
 			return;
 		}
-		TLog.d( "Bluetooth使用権限OK.");
 
 		/* Bluetooth未サポート */
 		final BluetoothManager bluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
@@ -277,105 +265,200 @@ public class MainActivity extends FragmentActivity {
 			TLog.d("Bluetooth OFF.何もしない.");
 			return;
 		}
-		TLog.d("Bluetooth ON.");
 
-		TLog.d("scan開始");
-		mDeviceListAdapter.clearDevice();
+		/* Bluetoothサービス起動 */
+		Intent intent = new Intent(MainActivity.this, BleServerService.class);
+		bindService(intent, mCon, Context.BIND_AUTO_CREATE);
+		TLog.d("Bluetooth使用クリア -> Bluetoothサービス起動");
+	}
+
+	/* Serviceコールバック */
+	private IBleServerService		mBleServiceIf;
+	private final ServiceConnection	mCon = new ServiceConnection() {
+		@Override
+		public void onServiceConnected(ComponentName name, IBinder service) {
+			mBleServiceIf = IBleServerService.Stub.asInterface(service);
+
+			/* コールバック設定 */
+			try { mBleServiceIf.setCallback(mCb); }
+			catch (RemoteException e) { e.printStackTrace(); throw new RuntimeException("AIDL-callback設定で失敗!!"); /* ここで例外が起きたら終了する */}
+
+			/* BT初期化 */
+			int retini = 0;
+			try { retini = mBleServiceIf.initBle(); }
+			catch (RemoteException e) { e.printStackTrace(); throw new RuntimeException("Bt初期化で失敗!!"); /* ここで例外が起きたら終了する */}
+			TLog.d("Bletooth初期化 ret={0}", retini);
+			if(retini == Constants.UWS_NG_PERMISSION_DENIED)
+				ErrPopUp.create(MainActivity.this).setErrMsg("このアプリに権限がありません!!\n終了します。").Show(MainActivity.this);
+			else if(retini == Constants.UWS_NG_SERVICE_NOTFOUND)
+				ErrPopUp.create(MainActivity.this).setErrMsg("この端末はBluetoothに対応していません!!\n終了します。").Show(MainActivity.this);
+			else if(retini == Constants.UWS_NG_ADAPTER_NOTFOUND)
+				ErrPopUp.create(MainActivity.this).setErrMsg("この端末はBluetoothに対応していません!!\n終了します。").Show(MainActivity.this);
+			else if(retini == Constants.UWS_NG_BT_OFF) {
+				Snackbar.make(findViewById(R.id.root_view), "BluetoothがOFFです。\nONにして操作してください。", Snackbar.LENGTH_LONG).show();
+//				return Constants.UWS_NG_BT_OFF;
+			}
+			else if(retini != Constants.UWS_NG_SUCCESS)
+				ErrPopUp.create(MainActivity.this).setErrMsg("原因不明のエラーが発生しました!!\n終了します。").Show(MainActivity.this);
+
+			/* scan開始 */
+			boolean retscan = startScan();
+			TLog.d("scan開始 ret={0}", retscan);
+			return;
+		}
+
+		@Override
+		public void onServiceDisconnected(ComponentName name) {
+			mBleServiceIf = null;
+		}
+	};
+
+	/* AIDLコールバック */
+	private IBleServerServiceCallback mCb = new IBleServerServiceCallback.Stub() {
+		@Override
+		public void notifyDeviceInfolist() throws RemoteException {
+			List<DeviceInfo> result = mBleServiceIf.getDeviceInfolist();
+			runOnUiThread(() -> mDeviceListAdapter.addDevice(result));
+		}
+
+		@Override
+		public void notifyDeviceInfo() throws RemoteException {
+			DeviceInfo result = mBleServiceIf.getDeviceInfo();
+			runOnUiThread(() -> mDeviceListAdapter.addDevice(result));
+			TLog.d("発見!! No:{0}, {1}({2}):Rssi({3})", result.getId(), result.getDeviceAddress(), result.getDeviceName(), result.getDeviceRssi());
+		}
+
+		@Override
+		public void notifyScanEnd() throws RemoteException {
+			TLog.d("scan終了");
+		}
+
+		@Override
+		public void notifyGattConnected(String Address) throws RemoteException {
+			/* TODO */
+//			/* Gatt接続完了 */
+//			TLog.d("Gatt接続OK!! -> Services探索中. Address={0}", Address);
+//			runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.EXPLORING); });
+		}
+
+		@Override
+		public void notifyGattDisConnected(String Address) throws RemoteException {
+			/* TODO */
+//			String logstr = MessageFormat.format("Gatt接続断!! Address={0}", Address);
+//			TLog.d(logstr);
+//			Snackbar.make(findViewById(R.id.root_view), logstr, Snackbar.LENGTH_LONG).show();
+//			runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.NONE); });
+		}
+
+		@Override
+		public void notifyServicesDiscovered(String Address, int status) throws RemoteException {
+			/* TODO */
+//			if(status == Constants.UWS_NG_GATT_SUCCESS) {
+//				TLog.d("Services発見. -> 対象Serviceかチェック ret={0}", status);
+//				runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.CHECKAPPLI); });
+//			}
+//			else {
+//				String logstr = MessageFormat.format("Services探索失敗!! 処理終了 ret={0}", status);
+//				TLog.d(logstr);
+//				runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.NONE); });
+//				Snackbar.make(findViewById(R.id.root_view), logstr, Snackbar.LENGTH_LONG).show();
+//			}
+		}
+
+		@Override
+		public void notifyApplicable(String Address, boolean status) throws RemoteException {
+			if(status) {
+				TLog.d("対象Chk-OK. -> 通信準備中 Address={0}", Address);
+				runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.TOBEPREPARED); });
+			}
+			else {
+				String logstr = MessageFormat.format("対象外デバイス.　処理終了. Address={0}", Address);
+				TLog.d(logstr);
+				runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.NONE); });
+				Snackbar.make(findViewById(R.id.root_view), logstr, Snackbar.LENGTH_LONG).show();
+			}
+		}
+
+		@Override
+		public void notifyReady2DeviceCommunication(String Address, boolean status) throws RemoteException {
+			/* TODO */
+//			if(status) {
+//				String logstr = MessageFormat.format("BLEデバイス通信 準備完了. Address={0}", Address);
+//				TLog.d(logstr);
+//				runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.READY); });
+//				Snackbar.make(findViewById(R.id.root_view), logstr, Snackbar.LENGTH_LONG).show();
+//			}
+//			else {
+//				String logstr = MessageFormat.format("BLEデバイス通信 準備失敗!! Address={0}", Address);
+//				TLog.d(logstr);
+//				runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.NONE); });
+//				Snackbar.make(findViewById(R.id.root_view), logstr, Snackbar.LENGTH_LONG).show();
+//			}
+		}
+
+		@Override
+		public void notifyResRead(String Address, long ldatetime, double longitude, double latitude, int heartbeat, int status) throws RemoteException {
+			/* TODO */
+			String logstr = MessageFormat.format("デバイス読込成功 {0}=({1} 経度:{2} 緯度:{3} 脈拍:{4}) status={5}", Address, new Date(ldatetime), longitude, latitude, heartbeat, status);
+			TLog.d(logstr);
+		}
+
+		@Override
+		public void notifyFromPeripheral(String Address, long ldatetime, double longitude, double latitude, int heartbeat) throws RemoteException {
+			/* TODO */
+			String logstr = MessageFormat.format("デバイス通知 {0}=({1} 経度:{2} 緯度:{3} 脈拍:{4})", Address, new Date(ldatetime), longitude, latitude, heartbeat);
+			TLog.d(logstr);
+		}
+
+		@Override
+		public void notifyError(int errcode, String errmsg) throws RemoteException {
+			String logstr = MessageFormat.format("ERROR!! errcode={0} : {1}", errcode, errmsg);
+			TLog.d(logstr);
+			Snackbar.make(findViewById(R.id.root_view), logstr, Snackbar.LENGTH_LONG).show();
+		}
+	};
+
+	/** **********
+	 * Scan開始
+	 * **********/
+	private boolean startScan() {
+		int ret = 0;
+		try { ret = mBleServiceIf.startScan();}
+		catch (RemoteException e) { e.printStackTrace();}
+		TLog.d("ret={0}", ret);
+		if(ret == Constants.UWS_NG_ALREADY_SCANNED) {
+			Snackbar.make(findViewById(R.id.root_view), "すでにscan中です。継続します。", Snackbar.LENGTH_LONG).show();
+			return false;
+		}
+		else if(ret == Constants.UWS_NG_BT_OFF) {
+			Snackbar.make(findViewById(R.id.root_view), "BluetoothがOFFです。\nONにして操作してください。", Snackbar.LENGTH_LONG).show();
+			return false;
+		}
+		try { mBleServiceIf.clearDevice();}
+		catch (RemoteException e) { e.printStackTrace(); return false;}
+
 		runOnUiThread(() -> {
+			mDeviceListAdapter.clearDevice();
 			Button btn = findViewById(R.id.btnScan);
-			btn.setText("scan中");
-			btn.setEnabled(false);
+			btn.setText("scan停止");
 		});
 
-		mScanCallback = new ScanCallback() {
-			@Override
-			public void onBatchScanResults(List<ScanResult> results) {
-				super.onBatchScanResults(results);
-				List<DeviceInfo> addlist = new ArrayList<>();
-				for(ScanResult ret : results)
-					addlist.add(new DeviceInfo(ret.getDevice().getName(), ret.getDevice().getAddress(), ret.getRssi(), false, 0));
-				mDeviceListAdapter.addDevice(addlist);
-//				for(ScanResult result : results) {
-//					TLog.d("---------------------------------- size=" + results.size());
-//					TLog.d("aaaaa AdvertisingSid             =" + result.getAdvertisingSid());
-//					TLog.d("aaaaa device                     =" + result.getDevice());
-//					TLog.d("            Name                 =" + result.getDevice().getName());
-//					TLog.d("            Address              =" + result.getDevice().getAddress());
-//					TLog.d("            Class                =" + result.getDevice().getClass());
-//					TLog.d("            BluetoothClass       =" + result.getDevice().getBluetoothClass());
-//					TLog.d("            BondState            =" + result.getDevice().getBondState());
-//					TLog.d("            Type                 =" + result.getDevice().getType());
-//					TLog.d("            Uuids                =" + result.getDevice().getUuids());
-//					TLog.d("aaaaa DataStatus                 =" + result.getDataStatus());
-//					TLog.d("aaaaa PeriodicAdvertisingInterval=" + result.getPeriodicAdvertisingInterval());
-//					TLog.d("aaaaa PrimaryPhy                 =" + result.getPrimaryPhy());
-//					TLog.d("aaaaa Rssi                       =" + result.getRssi());
-//					TLog.d("aaaaa ScanRecord                 =" + result.getScanRecord());
-//					TLog.d("aaaaa TimestampNanos             =" + result.getTimestampNanos());
-//					TLog.d("aaaaa TxPower                    =" + result.getTxPower());
-//					TLog.d("aaaaa Class                      =" + result.getClass());
-//					TLog.d("----------------------------------");
-//				}
-			}
+		return true;
+	}
 
-			@Override
-			public void onScanResult(int callbackType, ScanResult result) {
-				super.onScanResult(callbackType, result);
-				mDeviceListAdapter.addDevice(new DeviceInfo(result.getDevice().getName(), result.getDevice().getAddress(), result.getRssi(), false, 0));
-				if(result.getScanRecord() != null && result.getScanRecord().getServiceUuids() != null)
-					TLog.d("発見!! {0}({1}):Rssi({2}) Uuids({3})", result.getDevice().getAddress(), result.getDevice().getName(), result.getRssi(), result.getScanRecord().getServiceUuids().toString());
-				else
-					TLog.d("発見!! {0}({1}):Rssi({2})", result.getDevice().getAddress(), result.getDevice().getName(), result.getRssi());
-//				if(result !=null && result.getDevice() != null) {
-//					TLog.d("----------------------------------");
-//					TLog.d("aaaaa AdvertisingSid             =" + result.getAdvertisingSid());				//aaaaa AdvertisingSid             =255
-//					TLog.d("aaaaa device                     =" + result.getDevice());						//aaaaa device                     =65:57:FE:6F:E6:D9
-//					TLog.d("            Name                 =" + result.getDevice().getName());				//            Name                 =null
-//					TLog.d("            Address              =" + result.getDevice().getAddress());			//            Address              =65:57:FE:6F:E6:D9
-//					TLog.d("            Class                =" + result.getDevice().getClass());				//            Class                =class android.bluetooth.BluetoothDevice
-//					TLog.d("            BluetoothClass       =" + result.getDevice().getBluetoothClass());	//            BluetoothClass       =0
-//					TLog.d("            BondState            =" + result.getDevice().getBondState());			//            BondState            =10
-//					TLog.d("            Type                 =" + result.getDevice().getType());				//            Type                 =0
-//					TLog.d("            Uuids                =" + result.getDevice().getUuids());				//            Uuids                =null
-//					TLog.d("aaaaa DataStatus                 =" + result.getDataStatus());					//aaaaa DataStatus                 =0
-//					TLog.d("aaaaa PeriodicAdvertisingInterval=" + result.getPeriodicAdvertisingInterval());	//aaaaa PeriodicAdvertisingInterval=0
-//					TLog.d("aaaaa PrimaryPhy                 =" + result.getPrimaryPhy());					//aaaaa PrimaryPhy                 =1
-//					TLog.d("aaaaa Rssi                       =" + result.getRssi());							//aaaaa Rssi                       =-79
-//					TLog.d("aaaaa ScanRecord                 =" + result.getScanRecord());					//aaaaa ScanRecord                 =ScanRecord [mAdvertiseFlags=26, mServiceUuids=null, mServiceSolicitationUuids=[], mManufacturerSpecificData={76=[16, 5, 25, 28, 64, 39, -24]}, mServiceData={}, mTxPowerLevel=12, mDeviceName=null]
-//					TLog.d("aaaaa TimestampNanos             =" + result.getTimestampNanos());				//aaaaa TimestampNanos             =13798346768432
-//					TLog.d("aaaaa TxPower                    =" + result.getTxPower());						//aaaaa TxPower                    =127
-//					TLog.d("aaaaa Class                      =" + result.getClass());							//aaaaa Class                      =class android.bluetooth.le.ScanResult
-//					TLog.d("----------------------------------");
-//				}
-			}
 
-			@Override
-			public void onScanFailed(int errorCode) {
-				super.onScanFailed(errorCode);
-				TLog.d("aaaaa scan失敗!! errorCode=" + errorCode);
-			}
-		};
-
-		/* Bluetoothサポート有,Bluetooth使用権限有,Bluetooth ONなので、セントラルとして起動 */
-		mBLeScanner = bluetoothAdapter.getBluetoothLeScanner();
-
-		mHandler.postDelayed(() -> {
-			mBLeScanner.stopScan(mScanCallback);
+	/** **********
+	 * Scan終了
+	 * **********/
+	private void stopScan() {
+		int ret;
+		try { ret = mBleServiceIf.stopScan();}
+		catch (RemoteException e) { e.printStackTrace(); return;}
+		TLog.d("scan停止 ret={0}", ret);
+		runOnUiThread(() -> {
 			Button btn = findViewById(R.id.btnScan);
 			btn.setText("scan開始");
-			btn.setEnabled(true);
-			TLog.d("scan終了");
-			mScanCallback = null;
-		}, SCAN_PERIOD);
-
-		/* scanフィルタ */
-		List<ScanFilter> scanFilters = new ArrayList<>();
-		scanFilters.add(new ScanFilter.Builder().build());
-
-		/* scan設定 */
-		ScanSettings.Builder scansetting = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER);
-
-		/* scan開始 */
-		mBLeScanner.startScan(scanFilters, scansetting.build(), mScanCallback);
+		});
 	}
+
 }

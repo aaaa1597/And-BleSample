@@ -12,22 +12,22 @@ import android.view.ViewGroup;
 
 import com.tks.uwsserverunit00.R;
 
-public class FragMain extends Fragment {
-//	private FragMainViewModel	mViewModel;
+public class FragBizLogic extends Fragment {
+//	private FragBizLogicViewModel	mViewModel;
 
-	public static FragMain newInstance() {
-		return new FragMain();
+	public static FragBizLogic newInstance() {
+		return new FragBizLogic();
 	}
 
 	@Override
 	public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-		return inflater.inflate(R.layout.frag_main, container, false);
+		return inflater.inflate(R.layout.frag_bizlogic, container, false);
 	}
 
 	@Override
 	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
-//		mViewModel = new ViewModelProvider(requireActivity()).get(FragMainViewModel.class);
+//		mViewModel = new ViewModelProvider(requireActivity()).get(FragBizLogicViewModel.class);
 //		mViewModel.clearDevice().observe(getViewLifecycleOwner(), new Observer() {
 //			@Override
 //			public void onChanged(Object o) {

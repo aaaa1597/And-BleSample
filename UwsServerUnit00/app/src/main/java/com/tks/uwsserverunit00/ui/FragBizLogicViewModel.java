@@ -2,5 +2,5 @@ package com.tks.uwsserverunit00.ui;
 
 import androidx.lifecycle.ViewModel;
 
-public class FragMainViewModel extends ViewModel {
+public class FragBizLogicViewModel extends ViewModel {
 }

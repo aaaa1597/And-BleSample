@@ -1,7 +1,7 @@
-// IBleServiceCallback.aidl
+// IBleServerServiceCallback.aidl
 package com.tks.uwsserverunit00;
 
-interface IBleServiceCallback {
+interface IBleServerServiceCallback {
     void notifyGattConnected(String Address);
     void notifyGattDisConnected(String Address);
     void notifyDeviceInfolist();
