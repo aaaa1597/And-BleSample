@@ -16,7 +16,7 @@
         <!-- 地図画面 -->
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/frgMap"
-            android:name="com.google.android.gms.maps.SupportMapFragment"
+            android:name="com.tks.uwsserverunit00.ui.FragMap"
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
 
