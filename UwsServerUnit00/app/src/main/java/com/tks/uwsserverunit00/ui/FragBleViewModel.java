@@ -1,11 +1,11 @@
 package com.tks.uwsserverunit00.ui;
 
 import android.os.RemoteException;
-import android.widget.Button;
 
+import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
-import com.google.android.material.snackbar.Snackbar;
+
 import java.text.MessageFormat;
 import java.util.Date;
 import java.util.List;
@@ -13,7 +13,6 @@ import java.util.List;
 import com.tks.uwsserverunit00.DeviceInfo;
 import com.tks.uwsserverunit00.IBleServerService;
 import com.tks.uwsserverunit00.IBleServerServiceCallback;
-import com.tks.uwsserverunit00.R;
 import com.tks.uwsserverunit00.TLog;
 import static com.tks.uwsserverunit00.Constants.UWS_NG_ALREADY_SCANNED;
 import static com.tks.uwsserverunit00.Constants.UWS_NG_SUCCESS;
@@ -26,21 +25,20 @@ public class FragBleViewModel extends ViewModel {
 	/* ---------------- */
 	private final DeviceListAdapter	mDeviceListAdapter = new DeviceListAdapter();
 	public DeviceListAdapter getDeviceListAdapter() { return mDeviceListAdapter; }
-	public void AddDevice(DeviceInfo deviceInfo) {
-		if(deviceInfo != null) mDeviceListAdapter.addDevice(deviceInfo);
-	}
-	public void AddDeviceList(List<DeviceInfo> deviceInfos)	{
-		if(deviceInfos != null && deviceInfos.size() != 0) mDeviceListAdapter.addDevice(deviceInfos);
-	}
 	/* ---------------- */
-	private final MutableLiveData<String>	mScanBtnStr					= new MutableLiveData<>("");
-	public MutableLiveData<String>		ScanBtnStr()			{ return mScanBtnStr; }
+	private final MutableLiveData<BtnStatus>	mScanStatus = new MutableLiveData<>(BtnStatus.STOPSCAN);
+	public MutableLiveData<BtnStatus>			ScanStatus(){ return mScanStatus; }
+	enum BtnStatus {STARTSCAN, STOPSCAN}
 	/* ---------------- */
-	private final MutableLiveData<Boolean>	mNotifyDataSetChanged		= new MutableLiveData<>(false);
-	public MutableLiveData<Boolean>		NotifyDataSetChanged()	{ return mNotifyDataSetChanged; }
+	private final MutableLiveData<Boolean>	mNotifyDataSetChanged	= new MutableLiveData<>(false);
+	public MutableLiveData<Boolean>			NotifyDataSetChanged()	{ return mNotifyDataSetChanged; }
 	/* ---------------- */
-	private final MutableLiveData<Integer>	mNotifyItemChanged			= new MutableLiveData<>(-1);
-	public MutableLiveData<Integer>		NotifyItemChanged()	{ return mNotifyItemChanged; }
+	private final MutableLiveData<Integer>	mNotifyItemChanged	= new MutableLiveData<>(-1);
+	public MutableLiveData<Integer>			NotifyItemChanged()	{ return mNotifyItemChanged; }
+	/* ---------------- */
+	private final MutableLiveData<String>	mShowSnacbar	= new MutableLiveData<>("");
+	public LiveData<String>					ShowSnacbar()	{ return mShowSnacbar; }
+	public void showSnacbar(String showmMsg) { mShowSnacbar.postValue(showmMsg);}
 	/* ---------------- */
 
 	/** *****************
@@ -80,9 +78,10 @@ public class FragBleViewModel extends ViewModel {
 	 * **********/
 	public int startScan() {
 		/* 既にScan中の時は、開始しない */
-		if(mScanBtnStr.getValue().equals("Scan停止"))
+		if(mScanStatus.getValue() == BtnStatus.STARTSCAN)
 			return UWS_NG_ALREADY_SCANNED;
 
+		TLog.d("Scan開始.");
 		int ret = 0;
 		try { ret = mBleServiceIf.startScan();}
 		catch (RemoteException e) { e.printStackTrace();}
@@ -94,7 +93,7 @@ public class FragBleViewModel extends ViewModel {
 		try { mBleServiceIf.clearDevice();}
 		catch (RemoteException e) { e.printStackTrace(); return UWS_NG_AIDL_STARTSCAN_FAILED;}
 
-		mScanBtnStr.postValue("Scan停止");
+		mScanStatus.postValue(BtnStatus.STARTSCAN);
 		mDeviceListAdapter.clearDevice();
 		mNotifyDataSetChanged.postValue(true);
 
@@ -110,7 +109,7 @@ public class FragBleViewModel extends ViewModel {
 		try { ret = mBleServiceIf.stopScan();}
 		catch (RemoteException e) { e.printStackTrace(); return;}
 		TLog.d("scan停止 ret={0}", ret);
-		mScanBtnStr.postValue("Scan開始");
+		mScanStatus.postValue(BtnStatus.STOPSCAN);
 	}
 
 	/** *****************

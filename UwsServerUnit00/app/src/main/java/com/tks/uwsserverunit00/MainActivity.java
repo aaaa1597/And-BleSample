@@ -4,6 +4,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.Manifest;
@@ -32,6 +33,9 @@ public class MainActivity extends FragmentActivity {
 		setContentView(R.layout.activity_main);
 		TLog.d("");
 		mBleViewModel = new ViewModelProvider(this).get(FragBleViewModel.class);
+		mBleViewModel.ShowSnacbar().observe(this, showMsg -> {
+			Snackbar.make(findViewById(R.id.root_view), showMsg, Snackbar.LENGTH_LONG).show();
+		});
 
 		/* Bluetoothのサポート状況チェック 未サポート端末なら起動しない */
 		if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {

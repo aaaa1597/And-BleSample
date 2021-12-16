@@ -82,6 +82,11 @@ public class FragMap extends SupportMapFragment {
 
 		if(ActivityCompat.checkSelfPermission(getActivity().getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
 		&& ActivityCompat.checkSelfPermission(getActivity().getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+			/* TODO */
+			/* TODO */
+			/* TODO */
+			/* TODO */
+			/* TODO */
 			throw new RuntimeException("地図の権限なし");
 		}
 
