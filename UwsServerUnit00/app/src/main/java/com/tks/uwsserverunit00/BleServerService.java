@@ -31,6 +31,14 @@ import java.util.stream.Collectors;
 import static com.tks.uwsserverunit00.Constants.UWS_CHARACTERISTIC_HRATBEAT_UUID;
 import static com.tks.uwsserverunit00.DeviceConnectActivity.EXTRAS_DEVICE_ADDRESS;
 
+/**
+ * -30 dBm	素晴らしい	達成可能な最大信号強度。クライアントは、これを実現するには、APから僅か数フィートである必要があります。現実的には一般的ではなく、望ましいものでもありません	N/A
+ * -60 dBm	良好	非常に信頼性の高く、データパケットのタイムリーな伝送を必要とするアプリケーションのための最小信号強度	VoIP/VoWiFi, ストリーミングビデオ
+ * -70 dBm	Ok	信頼できるパケット伝送に必要な最小信号強度	Email, web
+ * -80 dBm	よくない	基本的なコネクティビティに必要な最小信号強度。パケット伝送は信頼できない可能性があります	N/A
+ * -90 dBm	使用不可	ノイズレベルに近いかそれ以下の信号強度。殆ど機能しない	N/A
+ **/
+
 public class BleServerService extends Service {
 	private BluetoothAdapter					mBluetoothAdapter;
 
@@ -312,7 +320,8 @@ public class BleServerService extends Service {
 
 		@Override
 		public void clearDevice() throws RemoteException {
-			return;/* TODO これは別に作る */
+			mTmpDeviceInfoList.clear();
+			mTmpDeviceInfo = null;
 		}
 
 		@Override
@@ -473,16 +482,9 @@ public class BleServerService extends Service {
 			}
 		};
 
-		/* scanフィルタ */
-		List<ScanFilter> scanFilters = new ArrayList<>();
-		scanFilters.add(new ScanFilter.Builder().build());
-
-		/* scan設定 */
-		ScanSettings.Builder scansetting = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER);
-
 		/* scan開始 */
 		mBLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
-		mBLeScanner.startScan(scanFilters, scansetting.build(), mScanCallback);
+		mBLeScanner.startScan(mScanCallback);
 
 		return Constants.UWS_NG_SUCCESS;
 	}

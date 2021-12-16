@@ -1,5 +1,8 @@
 package com.tks.uwsserverunit00.ui;
 
+import static java.security.AccessController.getContext;
+
+import android.content.Intent;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.tks.uwsserverunit00.DeviceConnectActivity;
 import com.tks.uwsserverunit00.DeviceInfo;
 import com.tks.uwsserverunit00.R;
 
@@ -54,7 +58,6 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
 
 	/* メンバ変数 */
 	private ArrayList<DevicveInfoModel>	mDeviceList = new ArrayList<>();
-	private DeviceListAdapterListener	mListener;
 
 	public enum ConnectStatus { NONE, CONNECTING, EXPLORING, CHECKAPPLI, TOBEPREPARED, READY}
 	private static class DevicveInfoModel {
@@ -76,11 +79,6 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
 		}
 	}
 
-	/* コンストラクタ */
-	public DeviceListAdapter(DeviceListAdapterListener listener) {
-		mListener = listener;
-	}
-
 	@NonNull
 	@Override
 	public DeviceListAdapter.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -89,7 +87,7 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
 	}
 
 	@Override
-	public void onBindViewHolder(@NonNull DeviceListAdapter.ViewHolder holder, int position) {
+	public void onBindViewHolder(@NonNull DeviceListAdapter. ViewHolder holder, int position) {
 		DevicveInfoModel model = mDeviceList.get(position);
 		final String deviceName		= model.mDeviceName;
 		final String deviceAddress	= model.mDeviceAddress;
@@ -110,14 +108,13 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
 		holder.mImvRssi.setImageResource(rssiresid);
 		holder.mTxtHertBeat.setText(model.mHertBeat == 0 ? "-" : ""+model.mHertBeat);
 //		holder.itemView.setOnClickListener(view -> {
-//			/* 接続実行 */
-//			if (mListener != null)
-//				mListener.onDeviceItemClick(view, deviceName, deviceAddress);
 //		});
 		holder.mBtnConnect.setOnClickListener(view -> {
-			/* 接続ボタン押下 */
-			if (mListener != null)
-				mListener.onDeviceItemClick(view, deviceName, deviceAddress);
+			/* 接続ボタン押下 接続画面に遷移 */
+			Intent intent = new Intent(view.getContext(), DeviceConnectActivity.class);
+			intent.putExtra(DeviceConnectActivity.EXTRAS_DEVICE_NAME	, deviceName);
+			intent.putExtra(DeviceConnectActivity.EXTRAS_DEVICE_ADDRESS	, deviceAddress);
+			view.getContext().startActivity(intent);
 		});
 		holder.mBtnBuoy.setOnClickListener(v -> {
 			/* 浮標ボタン押下 */
@@ -134,7 +131,7 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
 			for (DeviceInfo deviceInfo : deviceInfos) {
 				addDevice(deviceInfo, false);
 			}
-			notifyDataSetChanged();
+//			notifyDataSetChanged();
 		}
 	}
 
@@ -170,22 +167,23 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
 			});
 		}
 
-		if (notify) {
-			notifyDataSetChanged();
-		}
-
+//		if (notify) {
+//			notifyDataSetChanged();
+//		}
 	}
 
-	public void setStatus(String address, ConnectStatus status) {
+	public int setStatus(String address, ConnectStatus status) {
 		int pos = getPosition(address);
 		mDeviceList.get(pos).mConnectStatus = status;
-		notifyItemChanged(pos);
+//		notifyItemChanged(pos);
+		return pos;
 	}
 
-	public void setHertBeat(String address, int rcvval) {
+	public int setHertBeat(String address, int rcvval) {
 		int pos = getPosition(address);
 		mDeviceList.get(pos).mHertBeat = rcvval;
-		notifyItemChanged(pos);
+//		notifyItemChanged(pos);
+		return pos;
 	}
 
 	private int getPosition(String address) {
@@ -201,6 +199,6 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
 
 	public void clearDevice() {
 		mDeviceList.clear();
-		notifyDataSetChanged();
+//		notifyDataSetChanged();
 	}
 }
