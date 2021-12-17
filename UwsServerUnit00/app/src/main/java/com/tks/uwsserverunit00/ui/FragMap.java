@@ -9,6 +9,8 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.os.Looper;
 import android.view.LayoutInflater;
@@ -37,7 +39,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public class FragMap extends SupportMapFragment {
-	//	private FragMapViewModel mViewModel;
+	private FragMapViewModel		mViewModel;
 	private GoogleMap				mGoogleMap;
 	private Location				mLocation;
 	private Map<String, SerchInfo>	mSerchInfos = new HashMap<>();
@@ -61,7 +63,10 @@ public class FragMap extends SupportMapFragment {
 	@Override
 	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
-//		mViewModel = new ViewModelProvider(requireActivity()).get(FragMapViewModel.class);
+		mViewModel = new ViewModelProvider(requireActivity()).get(FragMapViewModel.class);
+		mViewModel.Permission().observe(getViewLifecycleOwner(), aBoolean -> {
+			getNowPosAndDraw();
+		});
 
 		/* SupportMapFragmentを取得し、マップを使用する準備ができたら通知を受取る */
 		SupportMapFragment mapFragment = (SupportMapFragment) getActivity().getSupportFragmentManager().findFragmentById(R.id.frgMap);
@@ -80,14 +85,15 @@ public class FragMap extends SupportMapFragment {
 			}
 		});
 
-		if(ActivityCompat.checkSelfPermission(getActivity().getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-		&& ActivityCompat.checkSelfPermission(getActivity().getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-			/* TODO */
-			/* TODO */
-			/* TODO */
-			/* TODO */
-			/* TODO */
-			throw new RuntimeException("地図の権限なし");
+		/* 現在値取得 → 地図更新 */
+		getNowPosAndDraw();
+	}
+
+	/* 現在値取得 → 地図更新 */
+	private void getNowPosAndDraw() {
+		/* 権限なしなら何もしない。 */
+		if(ActivityCompat.checkSelfPermission(getActivity().getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+			return;
 		}
 
 		/* 位置情報管理オブジェクト */
