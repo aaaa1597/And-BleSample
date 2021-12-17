@@ -24,7 +24,10 @@ import android.os.RemoteException;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.tks.uwsserverunit00.Constants.UWS_NG_SUCCESS;
@@ -40,10 +43,11 @@ import static com.tks.uwsserverunit00.Constants.UWS_NG_DEVICE_NOTFOUND;
  **/
 
 public class BleServerService extends Service {
-	private BluetoothAdapter	mBluetoothAdapter;
-	private BluetoothGatt		mBleGatt;
-
-	private final BluetoothGattCallback	mGattCallback = new BluetoothGattCallback() {
+	private BluetoothAdapter					mBluetoothAdapter;
+	private BluetoothGatt						mBleGatt;
+	private final Map<String, BluetoothGatt>	mConnectedDevices = new HashMap<>();
+	private BluetoothGattCharacteristic			mCharacteristic = null;
+	private final BluetoothGattCallback			mGattCallback = new BluetoothGattCallback() {
 		@Override
 		public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
 			TLog.d("BluetoothGattCallback::onConnectionStateChange() {0} -> {1}", status, newState);
@@ -71,11 +75,45 @@ public class BleServerService extends Service {
 
 		@Override
 		public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-			TLog.d("Discovery終了 result : {0}", status);
+			String address = gatt.getDevice().getAddress();
+			TLog.d("Services一致!! address={0} ret={1}", address, status);
+
+			try { mCb2nd.notifyServicesDiscovered(gatt.getDevice().getAddress(), status); }
+			catch (RemoteException e) { e.printStackTrace(); }
+
+
 			if (status == BluetoothGatt.GATT_SUCCESS) {
-				/* Intent送信(Service->Activity) */
-				try { mCb2nd.notifyServicesDiscovered(gatt.getDevice().getAddress(), status); }
-				catch (RemoteException e) { e.printStackTrace(); }
+				mCharacteristic = findTerget(gatt, Constants.UWS_SERVICE_UUID, Constants.UWS_CHARACTERISTIC_HRATBEAT_UUID);
+				if (mCharacteristic != null) {
+					try { mCb2nd.notifyApplicable(address, true); }
+					catch (RemoteException e) { e.printStackTrace(); }
+
+					TLog.d("find it. Services and Characteristic.");
+					boolean ret1 = gatt.readCharacteristic(mCharacteristic);	/* 初回読み出し */
+					boolean ret2 = gatt.setCharacteristicNotification(mCharacteristic, true);
+					if(ret1 && ret2) {
+						TLog.d("BLEデバイス通信 準備完了. address={0}", address);
+						try { mCb2nd.notifyReady2DeviceCommunication(address, true); }
+						catch (RemoteException e) { e.printStackTrace(); }
+						mConnectedDevices.put(address, gatt);
+					}
+					else {
+						TLog.d("BLEデバイス通信 準備失敗!! address={0}", address);
+						try { mCb2nd.notifyReady2DeviceCommunication(address, false); }
+						catch (RemoteException e) { e.printStackTrace(); }
+						mConnectedDevices.remove(address);
+						gatt.disconnect();
+						gatt.close();
+					}
+				}
+				else {
+					TLog.d("対象外デバイス!! address={0}", address);
+					try { mCb2nd.notifyApplicable(address, false); }
+					catch (RemoteException e) { e.printStackTrace(); }
+					mConnectedDevices.remove(address);
+					gatt.disconnect();
+					gatt.close();
+				}
 			}
 		}
 
@@ -98,6 +136,25 @@ public class BleServerService extends Service {
 			parseRcvData(gatt, characteristic);
 		}
 	};
+
+	private BluetoothGattCharacteristic findTerget(BluetoothGatt gatt, UUID ServiceUuid, UUID CharacteristicUuid) {
+		BluetoothGattCharacteristic ret = null;
+		for (BluetoothGattService service : gatt.getServices()) {
+			/*-*-----------------------------------*/
+			for(BluetoothGattCharacteristic gattChara : service.getCharacteristics())
+				TLog.d("{0} : service-UUID={1} Chara-UUID={2}", gatt.getDevice().getAddress(), service.getUuid(), gattChara.getUuid());
+			/*-*-----------------------------------*/
+			if( !service.getUuid().toString().startsWith(ServiceUuid.toString().substring(0,5)))
+				continue;
+
+			final List<BluetoothGattCharacteristic> findc = service.getCharacteristics().stream().filter(c -> {
+				return c.getUuid().equals(CharacteristicUuid);
+			}).collect(Collectors.toList());
+			/* 見つかった最後の分が有効なので、上書きする */
+			ret = findc.get(0);
+		}
+		return ret;
+	}
 
 	/* データ受信(peripheral -> Service -> Activity) */
 	private void parseRcvData(BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic) {

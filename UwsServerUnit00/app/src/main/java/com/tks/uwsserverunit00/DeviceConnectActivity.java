@@ -184,27 +184,27 @@ public class DeviceConnectActivity extends AppCompatActivity {
 
 		@Override
 		public void notifyServicesDiscovered(String Address, int status) throws RemoteException {
-			try { mCharacteristic = findTerget(mBleServiceIf.getSupportedGattServices(), UWS_SERVICE_UUID, UWS_CHARACTERISTIC_HRATBEAT_UUID); }
-			catch (RemoteException e) { e.printStackTrace(); }
-			if (mCharacteristic == null)
-				TLog.d("mCharacteristic is null. 対象外デバイス.");
-			else {
-				try {
-					mBleServiceIf.readCharacteristic(mCharacteristic);
-					mBleServiceIf.setCharacteristicNotification(mCharacteristic, true);
-				}
-				catch (RemoteException e) {e.printStackTrace();}
-			}
-//			if(status == Constants.UWS_NG_GATT_SUCCESS) {
-//				TLog.d("Services発見. -> 対象Serviceかチェック ret={0}", status);
-//				runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.CHECKAPPLI); });
-//			}
+//			try { mCharacteristic = findTerget(mBleServiceIf.getSupportedGattServices(), UWS_SERVICE_UUID, UWS_CHARACTERISTIC_HRATBEAT_UUID); }
+//			catch (RemoteException e) { e.printStackTrace(); }
+//			if (mCharacteristic == null)
+//				TLog.d("mCharacteristic is null. 対象外デバイス.");
 //			else {
-//				String logstr = MessageFormat.format("Services探索失敗!! 処理終了 ret={0}", status);
-//				TLog.d(logstr);
-//				runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.NONE); });
-//				Snackbar.make(findViewById(R.id.root_view), logstr, Snackbar.LENGTH_LONG).show();
+//				try {
+//					mBleServiceIf.readCharacteristic(mCharacteristic);
+//					mBleServiceIf.setCharacteristicNotification(mCharacteristic, true);
+//				}
+//				catch (RemoteException e) {e.printStackTrace();}
 //			}
+			if(status == Constants.UWS_NG_GATT_SUCCESS) {
+				TLog.d("Services発見. -> 対象Serviceかチェック ret={0}", status);
+//				runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.CHECKAPPLI); });
+			}
+			else {
+				String logstr = MessageFormat.format("Services探索失敗!! 処理終了 ret={0}", status);
+				TLog.d(logstr);
+//				runOnUiThread(() -> { mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.NONE); });
+				Snackbar.make(findViewById(R.id.root_view), logstr, Snackbar.LENGTH_LONG).show();
+			}
 		}
 
 		@Override
