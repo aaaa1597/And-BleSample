@@ -1,25 +1,20 @@
 package com.tks.uwsserverunit00.ui;
 
 import android.os.RemoteException;
-import android.view.View;
-
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 import java.text.MessageFormat;
 import java.util.Date;
 import java.util.List;
-
-import com.google.android.material.snackbar.Snackbar;
 import com.tks.uwsserverunit00.DeviceInfo;
 import com.tks.uwsserverunit00.IBleServerService;
 import com.tks.uwsserverunit00.IBleServerServiceCallback;
-import com.tks.uwsserverunit00.R;
 import com.tks.uwsserverunit00.TLog;
+import static com.tks.uwsserverunit00.Constants.UWS_NG_SUCCESS;
+import static com.tks.uwsserverunit00.Constants.UWS_NG_GATT_SUCCESS;
 import static com.tks.uwsserverunit00.Constants.UWS_NG_ALREADY_SCANNED;
 import static com.tks.uwsserverunit00.Constants.UWS_NG_DEVICE_NOTFOUND;
-import static com.tks.uwsserverunit00.Constants.UWS_NG_GATT_SUCCESS;
-import static com.tks.uwsserverunit00.Constants.UWS_NG_SUCCESS;
 import static com.tks.uwsserverunit00.Constants.UWS_NG_AIDL_STARTSCAN_FAILED;
 import static com.tks.uwsserverunit00.Constants.UWS_NG_AIDL_CALLBACK_FAILED;
 import static com.tks.uwsserverunit00.Constants.UWS_NG_AIDL_INIT_BLE_FAILED;
@@ -39,13 +34,13 @@ public class FragBleViewModel extends ViewModel {
 	/* ---------------- */
 	private final MutableLiveData<String>	mShowSnacbar			= new MutableLiveData<>("");
 	public LiveData<String>					ShowSnacbar()			{ return mShowSnacbar; }
-	public void 							showSnacbar(String showmMsg) { mShowSnacbar.postValue(showmMsg);}
+	public void								showSnacbar(String showmMsg) { mShowSnacbar.postValue(showmMsg);}
 	/* ---------------- */
 	public DeviceListAdapter				getDeviceListAdapter()	{ return mDeviceListAdapter; }
 	private final DeviceListAdapter			mDeviceListAdapter		= new DeviceListAdapter((view, deviceName, deviceAddress) -> {
 		/* 接続ボタン押下 */
 		int ret = 0;
-		try { ret = mBleServiceIf.connectBleDevice(deviceAddress);}
+		try { ret = mBleServiceIf.connectDevice(deviceAddress);}
 		catch (RemoteException e) { e.printStackTrace();}
 		if( ret < 0) {
 			TLog.d("BLE初期化/接続失敗!!");
@@ -180,9 +175,9 @@ public class FragBleViewModel extends ViewModel {
 			else {
 				String logstr = MessageFormat.format("Services探索失敗!! 処理終了 ret={0}", status);
 				TLog.d(logstr);
+				showSnacbar(logstr);
 				int pos = mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.NONE);
 				mNotifyItemChanged.postValue(pos);
-				showSnacbar(logstr);
 			}
 		}
 
@@ -207,30 +202,30 @@ public class FragBleViewModel extends ViewModel {
 			if(status) {
 				String logstr = MessageFormat.format("BLEデバイス通信 準備完了. Address={0}", Address);
 				TLog.d(logstr);
+				showSnacbar(logstr);
 				int pos = mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.READY);
 				mNotifyItemChanged.postValue(pos);
-				showSnacbar(logstr);
 			}
 			else {
 				String logstr = MessageFormat.format("BLEデバイス通信 準備失敗!! Address={0}", Address);
 				TLog.d(logstr);
+				showSnacbar(logstr);
 				int pos = mDeviceListAdapter.setStatus(Address, DeviceListAdapter.ConnectStatus.NONE);
 				mNotifyItemChanged.postValue(pos);
-				showSnacbar(logstr);
 			}
 		}
 
 		@Override
 		public void notifyResRead(String Address, long ldatetime, double longitude, double latitude, int heartbeat, int status) throws RemoteException {
 			/* TODO */
-			String logstr = MessageFormat.format("デバイスaaa読込成功 {0}=({1} 経度:{2} 緯度:{3} 脈拍:{4}) status={5}", Address, new Date(ldatetime), longitude, latitude, heartbeat, status);
+			String logstr = MessageFormat.format("デバイス読込成功 {0}=({1} 経度:{2} 緯度:{3} 脈拍:{4}) status={5}", Address, new Date(ldatetime), longitude, latitude, heartbeat, status);
 			TLog.d(logstr);
 		}
 
 		@Override
 		public void notifyFromPeripheral(String Address, long ldatetime, double longitude, double latitude, int heartbeat) throws RemoteException {
 			/* TODO */
-			String logstr = MessageFormat.format("デバイスaaa通知 {0}=({1} 経度:{2} 緯度:{3} 脈拍:{4})", Address, new Date(ldatetime), longitude, latitude, heartbeat);
+			String logstr = MessageFormat.format("デバイス通知 {0}=({1} 経度:{2} 緯度:{3} 脈拍:{4})", Address, new Date(ldatetime), longitude, latitude, heartbeat);
 			TLog.d(logstr);
 		}
 

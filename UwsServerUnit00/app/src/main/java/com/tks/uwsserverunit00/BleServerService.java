@@ -57,7 +57,7 @@ public class BleServerService extends Service {
 				try { mCb.notifyGattConnected(gatt.getDevice().getAddress()); }
 				catch (RemoteException e) { e.printStackTrace(); }
 				TLog.d("GATTサーバ接続OK.");
-				mBleGatt.discoverServices();
+				gatt.discoverServices();
 				TLog.d("Discovery開始");
 			}
 			/* Gattサーバ断 */
@@ -213,27 +213,6 @@ public class BleServerService extends Service {
 		}
 	}
 
-	private void readCharacteristic(BluetoothGattCharacteristic characteristic) {
-		if (mBleGatt == null) {
-			TLog.d("Bluetooth not initialized");
-			throw new IllegalStateException("Error!! Bluetooth not initialized!!");
-		}
-
-		mBleGatt.readCharacteristic(characteristic);
-	}
-
-	/* 指定CharacteristicのCallback登録 */
-	public void setCharacteristicNotification(BluetoothGattCharacteristic characteristic, boolean enabled) {
-		TLog.d("setCharacteristicNotification() s");
-		if (mBleGatt == null) {
-			TLog.d("Bluetooth not initialized");
-			throw new IllegalStateException("Error!! Bluetooth not initialized!!");
-		}
-
-		mBleGatt.setCharacteristicNotification(characteristic, enabled);
-		TLog.d("setCharacteristicNotification() e");
-	}
-
 	/************/
 	/*  Scan実装 */
 	/************/
@@ -278,28 +257,13 @@ public class BleServerService extends Service {
 
 		@Override
 		public int connectDevice(String deviceAddress) throws RemoteException {
-			return 0;/* TODO これは別に作る */
+			return BleServerService.this.connectBleDevice(deviceAddress);
 		}
 
 		@Override
 		public void clearDevice() throws RemoteException {
 			mTmpDeviceInfoList.clear();
 			mTmpDeviceInfo = null;
-		}
-
-		@Override
-		public int connectBleDevice(String deviceAddress) throws RemoteException {
-			return BleServerService.this.connectBleDevice(deviceAddress);
-		}
-
-		@Override
-		public void readCharacteristic(BluetoothGattCharacteristic charac) throws RemoteException {
-			BleServerService.this.readCharacteristic(charac);
-		}
-
-		@Override
-		public void setCharacteristicNotification(BluetoothGattCharacteristic charac, boolean ind) throws RemoteException {
-			BleServerService.this.setCharacteristicNotification(charac, ind);
 		}
 	};
 

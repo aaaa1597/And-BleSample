@@ -6,15 +6,12 @@ import com.tks.uwsserverunit00.DeviceInfo;
 interface IBleServerService {
     void setCallback(IBleServerServiceCallback callback);	/* 常に後勝ち */
     int initBle();
-	/* Scan */
+    /* Scan */
     int startScan();
     int stopScan();
     List<DeviceInfo> getDeviceInfolist();
     DeviceInfo getDeviceInfo();
     void clearDevice();
-	/* Communication */
+    /* Communication */
     int connectDevice(String deviceAddress);
-	int connectBleDevice(String deviceAddress);
-    void readCharacteristic(in BluetoothGattCharacteristic charac);
-    void setCharacteristicNotification(in BluetoothGattCharacteristic charac, boolean ind);
 }
