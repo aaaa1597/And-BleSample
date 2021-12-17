@@ -8,10 +8,11 @@ interface IBleServerService {
     int initBle();
     /* Scan */
     int startScan();
-    int stopScan();
     List<DeviceInfo> getDeviceInfolist();
     DeviceInfo getDeviceInfo();
+    int stopScan();
     void clearDevice();
     /* Communication */
     int connectDevice(String deviceAddress);
+//    void disconnectDevice(String deviceAddress); まだ不要
 }

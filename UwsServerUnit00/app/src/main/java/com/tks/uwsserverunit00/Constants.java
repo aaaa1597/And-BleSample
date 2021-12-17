@@ -7,7 +7,7 @@ public class Constants {
 	/* エラーコード */
 	public final static int UWS_NG_SUCCESS				= 0;	/* OK */
 	public final static int UWS_NG_GATT_SUCCESS			= BluetoothGatt.GATT_SUCCESS;
-	public final static int UWS_NG_RECONNECT_OK			= -1;	/* 再接続OK */
+	public final static int UWS_NG_ALREADY_CONNECTED	= -1;	/* 既に接続済 */
 	public final static int UWS_NG_SERVICE_NOTFOUND		= -2;	/* サービスが見つからない(=Bluetooth未サポ－ト) */
 	public final static int UWS_NG_ADAPTER_NOTFOUND		= -3;	/* BluetoothAdapterがnull(=Bluetooth未サポ－ト) */
 	public final static int UWS_NG_BT_OFF				= -4;	/* Bluetooth機能がOFF */
