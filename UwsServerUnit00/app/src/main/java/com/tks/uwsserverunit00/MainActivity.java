@@ -6,7 +6,6 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
-
 import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;

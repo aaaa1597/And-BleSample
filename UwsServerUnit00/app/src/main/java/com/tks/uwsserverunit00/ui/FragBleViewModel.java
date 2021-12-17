@@ -1,11 +1,9 @@
 package com.tks.uwsserverunit00.ui;
 
 import android.os.RemoteException;
-
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
-
 import java.text.MessageFormat;
 import java.util.Date;
 import java.util.List;
@@ -23,8 +21,8 @@ import static com.tks.uwsserverunit00.Constants.UWS_NG_AIDL_INIT_BLE_FAILED;
 public class FragBleViewModel extends ViewModel {
 	private IBleServerService					mBleServiceIf;
 	/* ---------------- */
-	private final DeviceListAdapter	mDeviceListAdapter = new DeviceListAdapter();
-	public DeviceListAdapter getDeviceListAdapter() { return mDeviceListAdapter; }
+	private final DeviceListAdapter	mDeviceListAdapter		= new DeviceListAdapter();
+	public DeviceListAdapter		getDeviceListAdapter()	{ return mDeviceListAdapter; }
 	/* ---------------- */
 	private final MutableLiveData<BtnStatus>	mScanStatus = new MutableLiveData<>(BtnStatus.STOPSCAN);
 	public MutableLiveData<BtnStatus>			ScanStatus(){ return mScanStatus; }
