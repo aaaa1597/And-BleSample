@@ -1,8 +1,10 @@
 package com.tks.uwsserverunit00.ui;
 
+import static com.tks.uwsserverunit00.Constants.UWS_NG_DEVICE_NOTFOUND;
 import static java.security.AccessController.getContext;
 
 import android.content.Intent;
+import android.os.RemoteException;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,9 +18,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.android.material.snackbar.Snackbar;
 import com.tks.uwsserverunit00.DeviceConnectActivity;
 import com.tks.uwsserverunit00.DeviceInfo;
 import com.tks.uwsserverunit00.R;
+import com.tks.uwsserverunit00.TLog;
 
 /**
  * -30 dBm	素晴らしい	達成可能な最大信号強度。クライアントは、これを実現するには、APから僅か数フィートである必要があります。現実的には一般的ではなく、望ましいものでもありません	N/A
@@ -51,9 +55,14 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
 		}
 	}
 
-	/* インターフェース : DeviceListAdapterListener */
-	public interface DeviceListAdapterListener {
-		void onDeviceItemClick(View view, String deviceName, String deviceAddress);
+	/* インターフェース : OnConnectBtnClickListener */
+	public interface OnConnectBtnClickListener {
+		void OnConnectBtnClick(View view, String deviceName, String deviceAddress);
+	}
+	private OnConnectBtnClickListener mClickListener;
+	/* コンストラクタ */
+	public DeviceListAdapter(OnConnectBtnClickListener clickListener) {
+		mClickListener = clickListener;
 	}
 
 	/* メンバ変数 */
@@ -107,14 +116,9 @@ public class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.Vi
 		holder.mTxtId.setText((model.mId==-1) ? " - " : String.valueOf(model.mId));
 		holder.mImvRssi.setImageResource(rssiresid);
 		holder.mTxtHertBeat.setText(model.mHertBeat == 0 ? "-" : ""+model.mHertBeat);
-//		holder.itemView.setOnClickListener(view -> {
-//		});
 		holder.mBtnConnect.setOnClickListener(view -> {
-			/* 接続ボタン押下 接続画面に遷移 */
-			Intent intent = new Intent(view.getContext(), DeviceConnectActivity.class);
-			intent.putExtra(DeviceConnectActivity.EXTRAS_DEVICE_NAME	, deviceName);
-			intent.putExtra(DeviceConnectActivity.EXTRAS_DEVICE_ADDRESS	, deviceAddress);
-			view.getContext().startActivity(intent);
+			/* 接続ボタン押下 */
+			mClickListener.OnConnectBtnClick(view, deviceName, deviceAddress);
 		});
 		holder.mBtnBuoy.setOnClickListener(v -> {
 			/* 浮標ボタン押下 */

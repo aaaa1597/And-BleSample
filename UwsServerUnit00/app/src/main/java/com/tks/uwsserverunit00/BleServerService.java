@@ -54,7 +54,7 @@ public class BleServerService extends Service {
 			TLog.d("BluetoothProfile.STATE_CONNECTING({0}) STATE_CONNECTED({1}) STATE_DISCONNECTING({2}) STATE_DISCONNECTED({3})", BluetoothProfile.STATE_CONNECTING, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTING, BluetoothProfile.STATE_DISCONNECTED);
 			/* Gattサーバ接続完了 */
 			if(newState == BluetoothProfile.STATE_CONNECTED) {
-				try { mCb2nd.notifyGattConnected(gatt.getDevice().getAddress()); }
+				try { mCb.notifyGattConnected(gatt.getDevice().getAddress()); }
 				catch (RemoteException e) { e.printStackTrace(); }
 				TLog.d("GATTサーバ接続OK.");
 				mBleGatt.discoverServices();
@@ -63,7 +63,7 @@ public class BleServerService extends Service {
 			/* Gattサーバ断 */
 			else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
 				TLog.d("GATTサーバ断.");
-				try { mCb2nd.notifyGattDisConnected(gatt.getDevice().getAddress()); }
+				try { mCb.notifyGattDisConnected(gatt.getDevice().getAddress()); }
 				catch (RemoteException e) { e.printStackTrace(); }
 
 				TLog.d("GATT 再接続");
@@ -78,14 +78,14 @@ public class BleServerService extends Service {
 			String address = gatt.getDevice().getAddress();
 			TLog.d("Services一致!! address={0} ret={1}", address, status);
 
-			try { mCb2nd.notifyServicesDiscovered(gatt.getDevice().getAddress(), status); }
+			try { mCb.notifyServicesDiscovered(gatt.getDevice().getAddress(), status); }
 			catch (RemoteException e) { e.printStackTrace(); }
 
 
 			if (status == BluetoothGatt.GATT_SUCCESS) {
 				mCharacteristic = findTerget(gatt, Constants.UWS_SERVICE_UUID, Constants.UWS_CHARACTERISTIC_HRATBEAT_UUID);
 				if (mCharacteristic != null) {
-					try { mCb2nd.notifyApplicable(address, true); }
+					try { mCb.notifyApplicable(address, true); }
 					catch (RemoteException e) { e.printStackTrace(); }
 
 					TLog.d("find it. Services and Characteristic.");
@@ -93,13 +93,13 @@ public class BleServerService extends Service {
 					boolean ret2 = gatt.setCharacteristicNotification(mCharacteristic, true);
 					if(ret1 && ret2) {
 						TLog.d("BLEデバイス通信 準備完了. address={0}", address);
-						try { mCb2nd.notifyReady2DeviceCommunication(address, true); }
+						try { mCb.notifyReady2DeviceCommunication(address, true); }
 						catch (RemoteException e) { e.printStackTrace(); }
 						mConnectedDevices.put(address, gatt);
 					}
 					else {
 						TLog.d("BLEデバイス通信 準備失敗!! address={0}", address);
-						try { mCb2nd.notifyReady2DeviceCommunication(address, false); }
+						try { mCb.notifyReady2DeviceCommunication(address, false); }
 						catch (RemoteException e) { e.printStackTrace(); }
 						mConnectedDevices.remove(address);
 						gatt.disconnect();
@@ -108,7 +108,7 @@ public class BleServerService extends Service {
 				}
 				else {
 					TLog.d("対象外デバイス!! address={0}", address);
-					try { mCb2nd.notifyApplicable(address, false); }
+					try { mCb.notifyApplicable(address, false); }
 					catch (RemoteException e) { e.printStackTrace(); }
 					mConnectedDevices.remove(address);
 					gatt.disconnect();
@@ -165,7 +165,7 @@ public class BleServerService extends Service {
 			int msg = characteristic.getIntValue(format, 0);
 			TLog.d("message: {0}", msg);
 			/* 受信データ取出し */
-			try { mCb2nd.notifyResRead(gatt.getDevice().getAddress(), new Date().getTime(), 0, 0, msg, 0); }
+			try { mCb.notifyResRead(gatt.getDevice().getAddress(), new Date().getTime(), 0, 0, msg, 0); }
 			catch (RemoteException e) { e.printStackTrace(); }
 		}
 	}
@@ -244,8 +244,7 @@ public class BleServerService extends Service {
 	/************/
 	/*  Scan実装 */
 	/************/
-	private IBleServerServiceCallback mCb1st = null;	/* 常に後発のみ */
-	private IBleServerServiceCallback mCb2nd = null;	/* 常に後発のみ */
+	private IBleServerServiceCallback mCb = null;	/* 常に後発のみ */
 	private DeviceInfo			mTmpDeviceInfo;
 	private List<DeviceInfo>	mTmpDeviceInfoList = new ArrayList<>();
 	private BluetoothLeScanner	mBLeScanner;
@@ -256,10 +255,7 @@ public class BleServerService extends Service {
 	private Binder mBinder = new IBleServerService.Stub() {
 		@Override
 		public void setCallback(IBleServerServiceCallback callback) throws RemoteException {
-			if(mCb1st == null)
-				mCb1st = callback;
-			else
-				mCb2nd = callback;
+			mCb = callback;
 		}
 
 		@Override
@@ -379,7 +375,7 @@ public class BleServerService extends Service {
 					}
 					return new DeviceInfo(ret.getDevice().getName(), ret.getDevice().getAddress(), ret.getRssi(), isApplicable, id);
 				}).collect(Collectors.toList());
-				try { mCb1st.notifyDeviceInfolist();}
+				try { mCb.notifyDeviceInfolist();}
 				catch (RemoteException e) {e.printStackTrace();}
 //				for(ScanResult result : results) {
 //					TLog.d("---------------------------------- size=" + results.size());
@@ -423,7 +419,7 @@ public class BleServerService extends Service {
 				mTmpDeviceInfo = new DeviceInfo(result.getDevice().getName(), result.getDevice().getAddress(), result.getRssi(), isApplicable, id);
 				if(result.getScanRecord() != null && result.getScanRecord().getServiceUuids() != null)
 					TLog.d("発見!! {0}({1}):Rssi({2}) ScanRecord={3}", result.getDevice().getAddress(), result.getDevice().getName(), result.getRssi(), result.getScanRecord());
-				try { mCb1st.notifyDeviceInfo();}
+				try { mCb.notifyDeviceInfo();}
 				catch (RemoteException e) {e.printStackTrace();}
 
 //				if(result !=null && result.getDevice() != null) {
@@ -473,7 +469,7 @@ public class BleServerService extends Service {
 		mBLeScanner.stopScan(mScanCallback);
 		mScanCallback = null;
 		TLog.d("scan終了");
-		try { mCb1st.notifyScanEnd();}
+		try { mCb.notifyScanEnd();}
 		catch (RemoteException e) { e.printStackTrace(); }
 
 		return UWS_NG_SUCCESS;

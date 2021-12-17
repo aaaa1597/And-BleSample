@@ -11,9 +11,9 @@ interface IBleServerService {
     int stopScan();
     List<DeviceInfo> getDeviceInfolist();
     DeviceInfo getDeviceInfo();
-    int connectDevice(String deviceAddress);
     void clearDevice();
 	/* Communication */
+    int connectDevice(String deviceAddress);
 	int connectBleDevice(String deviceAddress);
     void readCharacteristic(in BluetoothGattCharacteristic charac);
     List<BluetoothGattService> getSupportedGattServices();
