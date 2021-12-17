@@ -1,10 +1,5 @@
 package com.tks.uwsserverunit00.ui;
 
-import static com.tks.uwsserverunit00.Constants.UWS_NG_DEVICE_NOTFOUND;
-import static java.security.AccessController.getContext;
-
-import android.content.Intent;
-import android.os.RemoteException;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,11 +13,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.android.material.snackbar.Snackbar;
-import com.tks.uwsserverunit00.DeviceConnectActivity;
 import com.tks.uwsserverunit00.DeviceInfo;
 import com.tks.uwsserverunit00.R;
-import com.tks.uwsserverunit00.TLog;
 
 /**
  * -30 dBm	素晴らしい	達成可能な最大信号強度。クライアントは、これを実現するには、APから僅か数フィートである必要があります。現実的には一般的ではなく、望ましいものでもありません	N/A

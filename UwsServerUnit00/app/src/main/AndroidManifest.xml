@@ -29,7 +29,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".DeviceConnectActivity" />
         <service android:name=".BleServerService" android:enabled="true" android:exported="false"/>
     </application>
 
