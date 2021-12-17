@@ -16,6 +16,5 @@ interface IBleServerService {
     int connectDevice(String deviceAddress);
 	int connectBleDevice(String deviceAddress);
     void readCharacteristic(in BluetoothGattCharacteristic charac);
-    List<BluetoothGattService> getSupportedGattServices();
     void setCharacteristicNotification(in BluetoothGattCharacteristic charac, boolean ind);
 }

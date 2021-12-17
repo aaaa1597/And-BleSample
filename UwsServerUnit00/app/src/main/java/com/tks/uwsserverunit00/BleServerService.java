@@ -234,13 +234,6 @@ public class BleServerService extends Service {
 		TLog.d("setCharacteristicNotification() e");
 	}
 
-	/* 対象デバイスの保有するサービスを取得 */
-	public List<BluetoothGattService> getSupportedGattServices() {
-		if (mBleGatt == null)
-			return null;
-		return mBleGatt.getServices();
-	}
-
 	/************/
 	/*  Scan実装 */
 	/************/
@@ -302,11 +295,6 @@ public class BleServerService extends Service {
 		@Override
 		public void readCharacteristic(BluetoothGattCharacteristic charac) throws RemoteException {
 			BleServerService.this.readCharacteristic(charac);
-		}
-
-		@Override
-		public List<BluetoothGattService> getSupportedGattServices() throws RemoteException {
-			return BleServerService.this.getSupportedGattServices();
 		}
 
 		@Override
