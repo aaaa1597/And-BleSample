@@ -19,7 +19,10 @@ import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.RemoteException;
+
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -414,7 +417,7 @@ public class BleServerService extends Service {
 		/* 読込み要求の応答 */
 		@Override
 		public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-			TLog.d("読込み要求の応答 status=", status);
+			TLog.d("読込み要求の応答 status={0}", status);
 			if (status == BluetoothGatt.GATT_SUCCESS) {
 				Object[] rcvval = parseRcvData(characteristic);
 				try { mCb.notifyResRead(gatt.getDevice().getAddress(), (long)rcvval[0], (double)rcvval[1], (double)rcvval[2], (int)rcvval[3], status); }
@@ -466,20 +469,36 @@ public class BleServerService extends Service {
 	private Object[] parseRcvData(final BluetoothGattCharacteristic characteristic) {
 		if (UWS_CHARACTERISTIC_HRATBEAT_UUID.equals(characteristic.getUuid())) {
 			/* 受信データ取出し */
-			int flag = characteristic.getProperties();
-			int format = ((flag & 0x01) != 0) ? BluetoothGattCharacteristic.FORMAT_UINT16 : BluetoothGattCharacteristic.FORMAT_UINT8;
-			int msg = characteristic.getIntValue(format, 0);
-			TLog.d("message: {0}", msg);
-//			long	ldatetime	= ByteBuffer.wrap(orgdata).getLong();
-//			double	longitude	= ByteBuffer.wrap(orgdata).getDouble(8);
-//			double	latitude	= ByteBuffer.wrap(orgdata).getDouble(16);
-//			int		heartbeat	= ByteBuffer.wrap(orgdata).getInt(24);
-			long	ldatetime	= msg;
-			double	longitude	= msg;
-			double	latitude	= msg;
-			int		heartbeat	= msg;
-			TLog.d("受信データ=({0} 経度:{1} 緯度:{2} 脈拍:{3})", new Date(ldatetime), longitude, latitude, heartbeat);
-			return new Object[] {ldatetime, longitude, latitude, heartbeat};
+			final byte[] rcvdata = characteristic.getValue();
+			TLog.d("rcvdata:(size={0}, {1})", rcvdata.length, Arrays.toString(rcvdata));
+			if(rcvdata.length == 28) {
+				/* 全データ受信(日付,経度,緯度,脈拍) */
+				long	ldatetime	= ByteBuffer.wrap(rcvdata).getLong();
+				double	longitude	= ByteBuffer.wrap(rcvdata).getDouble(8);
+				double	latitude	= ByteBuffer.wrap(rcvdata).getDouble(16);
+				int		heartbeat	= ByteBuffer.wrap(rcvdata).getInt(24);
+				TLog.d("受信データ=({0} 経度:{1} 緯度:{2} 脈拍:{3})", new Date(ldatetime), longitude, latitude, heartbeat);
+				return new Object[] {ldatetime, longitude, latitude, heartbeat};
+			}
+			short seqno = ByteBuffer.wrap(rcvdata).getShort(2);
+			if(seqno == 0) {
+				/* 先行の通知データ(msgid,seqno,日付,経度)受信 */
+				short	msgid		= ByteBuffer.wrap(rcvdata).getShort();
+//				short	seqno		= ByteBuffer.wrap(rcvdata).getShort(2);
+				long	ldatetime	= ByteBuffer.wrap(rcvdata).getLong(4);
+				double	longitude	= ByteBuffer.wrap(rcvdata).getDouble(12);
+				TLog.d("受信データ=({0} 経度:{1} 緯度:{2} 脈拍:{3})", new Date(ldatetime), longitude, 999, 999);
+				return new Object[] {ldatetime, longitude, 999.0, 999};
+			}
+			else {
+				/* 後発の通知データ(msgid,seqno,緯度,脈拍)受信 */
+				short	msgid		= ByteBuffer.wrap(rcvdata).getShort();
+//				short	seqno		= ByteBuffer.wrap(rcvdata).getShort(2);
+				double	latitude	= ByteBuffer.wrap(rcvdata).getDouble(4);
+				int		heartbeat	= ByteBuffer.wrap(rcvdata).getInt(12);
+				TLog.d("受信データ=({0} 経度:{1} 緯度:{2} 脈拍:{3})", new Date(0), 999, latitude, heartbeat);
+				return new Object[] {999, 999.0, latitude, heartbeat};
+			}
 		}
 		return new Object[] {new Date().getTime(),0,0,0};
 	}
