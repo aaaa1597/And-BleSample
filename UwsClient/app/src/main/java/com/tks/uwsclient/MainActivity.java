@@ -94,7 +94,7 @@ public class MainActivity extends AppCompatActivity {
 
 		/* Bluetoothのサポート状況チェック 未サポート端末なら起動しない */
 		if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
+			ErrPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
 		}
 
 		/* Bluetooth権限が許可されていない場合はリクエスト. */
@@ -109,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
 		BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
 		/* Bluetooth未サポート判定 未サポートならエラーpopupで終了 */
 		if (bluetoothAdapter == null) {
-			MsgPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
+			ErrPopUp.create(MainActivity.this).setErrMsg("Bluetoothが、未サポートの端末です。").Show(MainActivity.this);
 		}
 		/* Bluetooth ON/OFF判定 -> OFFならONにするようにリクエスト */
 		else if( !bluetoothAdapter.isEnabled()) {
@@ -117,13 +117,13 @@ public class MainActivity extends AppCompatActivity {
 			ActivityResultLauncher<Intent> startForResult = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
 					result -> {
 						if(result.getResultCode() != Activity.RESULT_OK) {
-							MsgPopUp.create(MainActivity.this).setErrMsg("BluetoothがOFFです。ONにして操作してください。\n終了します。").Show(MainActivity.this);
+							ErrPopUp.create(MainActivity.this).setErrMsg("BluetoothがOFFです。ONにして操作してください。\n終了します。").Show(MainActivity.this);
 						}
 						else {
 							/* Bluetooth機能ONだった */
 							mGattServer = bluetoothManager.openGattServer(this, mGattServerCallback);
 							if(mGattServer == null) {
-								MsgPopUp.create(MainActivity.this).setErrMsg("Ble初期化に失敗!!\n終了します。再起動で直る可能性があります。").Show(MainActivity.this);
+								ErrPopUp.create(MainActivity.this).setErrMsg("Ble初期化に失敗!!\n終了します。再起動で直る可能性があります。").Show(MainActivity.this);
 								finish();
 							}
 							/* 自分自身のペリフェラル特性を定義 */
@@ -136,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
 			/* Bluetooth機能ONだった */
 			mGattServer = bluetoothManager.openGattServer(this, mGattServerCallback);
 			if(mGattServer == null) {
-				MsgPopUp.create(MainActivity.this).setErrMsg("Ble初期化に失敗!!\n終了します。再起動で直る可能性があります。").Show(MainActivity.this);
+				ErrPopUp.create(MainActivity.this).setErrMsg("Ble初期化に失敗!!\n終了します。再起動で直る可能性があります。").Show(MainActivity.this);
 				finish();
 			}
 			/* 自分自身のペリフェラル特性を定義 */
@@ -268,7 +268,7 @@ public class MainActivity extends AppCompatActivity {
 			else {
 				mBluetoothDevices.remove(device);
 				TLog.e("{0} : {1}",getString(R.string.status_error_when_connecting), status);
-				MsgPopUp.create(MainActivity.this).setErrMsg(getString(R.string.status_error_when_connecting) + ":" + status).Show(MainActivity.this);
+				ErrPopUp.create(MainActivity.this).setErrMsg(getString(R.string.status_error_when_connecting) + ":" + status).Show(MainActivity.this);
 			}
 		}
 
