@@ -1,7 +1,0 @@
-<resources>
-    <string name="app_name">Peripheral</string>
-    <string name="advertise_device">Advertise Device</string>
-    <string name="notify">Notify Client</string>
-    <string name="status_error_when_connecting">An error occurred when connecting to a device. Error Code</string>
-    <string name="choose_color">Choose color</string>
-</resources>
